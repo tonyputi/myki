@@ -36,6 +36,9 @@ APP_DATA = {
         "current": {
             "takenat": "2026-11-07 12:37:29",
             "position": {"type": "WiFi", "latitude": 35.92417, "longitude": 14.45502, "accuracy": 25},
+            "gpsSatelites": 3,
+            "wifi": [{"ssid": "a"}, {"ssid": "b"}],
+            "baseStations": 4,
             "battery": "85", "RTT_secondsLeft": "0",
             "steps": {"allSteps": 1353915, "todaySteps": 4321},
         },
@@ -172,3 +175,11 @@ async def test_p3b_entities(hass: HomeAssistant, aioclient_mock) -> None:
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("watch/rtt" in u and "duration=10" in u for u in urls)
+
+
+async def test_diagnostic_sensors(hass: HomeAssistant, aioclient_mock) -> None:
+    await _setup(hass, aioclient_mock)
+    kid = NICK.lower()
+    assert hass.states.get(f"sensor.{kid}_gps_satellites").state == "3"
+    assert hass.states.get(f"sensor.{kid}_wifi_networks").state == "2"
+    assert hass.states.get(f"sensor.{kid}_cell_towers").state == "4"
