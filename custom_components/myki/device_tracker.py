@@ -71,4 +71,6 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
             "direction": current.get("direction"),
             "steps_all": (current.get("steps") or {}).get("allSteps"),
             "mode": settings.get("mode"),
+            "phone": settings.get("msisdn"),
+            "operator": settings.get("mcc_mnc"),
         }

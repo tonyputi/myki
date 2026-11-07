@@ -6,7 +6,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -39,6 +39,7 @@ async def async_setup_entry(
             MykiBatterySensor(coordinator, wid),
             MykiStepsSensor(coordinator, wid),
             MykiGsmSignalSensor(coordinator, wid),
+            MykiRttSecondsLeftSensor(coordinator, wid),
         )
     )
 
@@ -135,3 +136,22 @@ class MykiGsmSignalSensor(MykiEntity, SensorEntity):
     @property
     def native_value(self) -> int | None:
         return get_gsm_signal(self.app_data)
+
+
+class MykiRttSecondsLeftSensor(MykiEntity, SensorEntity):
+    _attr_translation_key = "rtt_seconds_left"
+    _attr_icon = "mdi:clock-fast"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+
+    def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
+        super().__init__(coordinator, watch_id)
+        self._attr_unique_id = f"{watch_id}_rtt_seconds_left"
+
+    @property
+    def native_value(self) -> int | None:
+        try:
+            return int((self.app_data.get("current") or {}).get("RTT_secondsLeft"))
+        except (TypeError, ValueError):
+            return None

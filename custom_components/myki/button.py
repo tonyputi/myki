@@ -24,6 +24,7 @@ async def async_setup_entry(
         for entity in (
             MykiFindButton(coordinator, wid),
             MykiCallMeButton(coordinator, wid),
+            MykiLiveTrackingButton(coordinator, wid),
         )
     )
 
@@ -66,3 +67,20 @@ class MykiCallMeButton(MykiEntity, ButtonEntity):
             await self.coordinator.client.make_call(self.watch_id, phone)
         except MykiError as err:
             raise HomeAssistantError(f"MyKi call failed: {err}") from err
+
+
+class MykiLiveTrackingButton(MykiEntity, ButtonEntity):
+    """Starts a 10-minute real-time tracking window (device reports faster)."""
+
+    _attr_translation_key = "live_tracking"
+
+    def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
+        super().__init__(coordinator, watch_id)
+        self._attr_unique_id = f"{watch_id}_live_tracking"
+
+    async def async_press(self) -> None:
+        try:
+            await self.coordinator.client.start_rtt(self.watch_id, 10)
+            await self.coordinator.async_request_refresh()
+        except MykiError as err:
+            raise HomeAssistantError(f"MyKi live tracking failed: {err}") from err

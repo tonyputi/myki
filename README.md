@@ -20,6 +20,13 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 | `sensor.<kid>_battery` | Battery % |
 | `binary_sensor.<kid>_online` | Tracker online/offline |
 | `sensor.<kid>_steps_today` | Today's step count |
+| `event.<kid>_events` | SOS alarm / low battery / safe zone events (automation-ready) |
+| `button.<kid>_live_tracking` | 10-minute live tracking window |
+| `sensor.<kid>_live_tracking_seconds_left` | Live tracking countdown |
+| `binary_sensor.<kid>_fresh_data` | Device has reported within 30 min |
+| `sensor.<kid>_gsm_signal` | GSM signal % (diagnostic) |
+| `button.<kid>_find` / `button.<kid>_call_me` | Ring the tracker / call you |
+| `number.<kid>_ring_volume` / `number.<kid>_call_volume` | Volume sliders (config) |
 
 **Services** (Developer Tools → Actions):
 

@@ -24,7 +24,7 @@ from .coordinator import MykiCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ("binary_sensor", "button", "device_tracker", "number", "sensor")
+PLATFORMS = ("binary_sensor", "button", "device_tracker", "event", "number", "sensor")
 
 MAKE_CALL_SCHEMA = vol.Schema({vol.Required(ATTR_PHONE): str})
 

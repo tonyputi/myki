@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .api import MykiAuthError, MykiClient
+from .api import MykiAuthError, MykiClient, MykiError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,10 +30,17 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
     async def _async_update_data(self) -> MykiData:
         try:
             watches = await self.client.watches()
-            return {
-                w["id"]: {"watch": w, "app": await self.client.app_data(w["id"])}
-                for w in watches
-                if w.get("id")
-            }
         except MykiAuthError as err:
             raise ConfigEntryAuthFailed() from err
+        data: MykiData = {}
+        for w in watches:
+            if not w.get("id"):
+                continue
+            app = await self.client.app_data(w["id"])
+            try:
+                events = await self.client.events(w["id"])
+            except MykiError as err:  # events are non-critical
+                _LOGGER.debug("Could not fetch events for %s: %s", w["id"], err)
+                events = []
+            data[w["id"]] = {"watch": w, "app": app, "events": events}
+        return data
