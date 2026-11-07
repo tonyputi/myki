@@ -1,5 +1,7 @@
 # MyKi for Home Assistant
 
+<img src="docs/assets/myki-icon.png" width="96" align="right" alt="MyKi">
+
 [![CI](https://github.com/tonyputi/myki/actions/workflows/ci.yml/badge.svg)](https://github.com/tonyputi/myki/actions/workflows/ci.yml)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
@@ -90,6 +92,11 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements_test.txt
 pytest && ruff check .
 ```
+
+## Trademark
+
+MyKi and the MyKi logo are trademarks of Allterco Consulting Ltd.
+The icon used in this README is the official MyKi asset from mykifamily.com.
 
 ## License
 
