@@ -16,7 +16,7 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 | `device_tracker.<kid>` | Live GPS position (accuracy + battery) |
 | `sensor.<kid>_zone` | The tracker's own safe zones: **"Home" / "School" / … / "Away"** |
 | `sensor.<kid>_battery` | Battery % |
-| `binary_sensor.<kid>_online` | Watch online/offline |
+| `binary_sensor.<kid>_online` | Tracker online/offline |
 | `sensor.<kid>_steps_today` | Today's step count |
 
 **Services** (Developer Tools → Actions):
@@ -35,9 +35,9 @@ data:
   phone: "+35679060465"
 ```
 
-## Attach a watch to a person
+## Attach a tracker to a person
 
-The trackers work with HA people: **Settings → People → *your kid* → add the MyKi tracker**, next to the tablet's tracker. Home Assistant will use whichever source reported last — school hours covered by the watch, home time by the tablet.
+The trackers work with HA people: **Settings → People → *your kid* → add the MyKi tracker**, next to the tablet's tracker. Home Assistant will use whichever source reported last — school hours covered by the tracker, home time by the tablet.
 
 ## Automation ideas
 
@@ -63,7 +63,7 @@ actions:
 
 - Kid left `Home` on a school morning → "on the bus" notification
 - Battery < 20% → evening charge reminder
-- Watch offline on a school day → forgot/flat battery alert
+- Tracker offline on a school day → forgot/flat battery alert
 
 More in [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
@@ -81,7 +81,7 @@ Options (Configure on the integration card): polling interval in seconds (defaul
 
 ## How it works
 
-Reverse-engineered REST API of the MyKi Spot cloud (`spot.myki.pet`, HTTP Basic auth). The integration polls `GET /api/watch/app-data` per watch: position, battery, steps, online state and the safe zones configured in the app. Full capability map: [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
+Reverse-engineered REST API of the MyKi Spot cloud (`spot.myki.pet`, HTTP Basic auth). The integration polls `GET /api/watch/app-data` per tracker: position, battery, steps, online state and the safe zones configured in the app. Full capability map: [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
 ## Development
 

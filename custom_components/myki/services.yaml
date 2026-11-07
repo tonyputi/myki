@@ -1,5 +1,5 @@
 find:
-  name: Find watch
+  name: Find tracker
   description: Make the tracker ring so you can locate it.
   target:
     entity:
@@ -7,10 +7,10 @@ find:
       domain: device_tracker
 
 make_call:
-  name: Make watch call
+  name: Make tracker call
   description: >-
     Make the tracker place a call to a phone number. The number should be in the
-    watch's SOS numbers or whitelist, otherwise the watch may refuse the call.
+    tracker's SOS numbers or whitelist, otherwise the tracker may refuse the call.
   target:
     entity:
       integration: myki
