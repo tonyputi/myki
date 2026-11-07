@@ -93,6 +93,18 @@ pip install -r requirements_test.txt
 pytest && ruff check .
 ```
 
+## Supported devices
+
+| Product | Type | Link | Status |
+|---|---|---|---|
+| **MyKi Spot** | GPS tracker | [mykifamily.com/myki-spot](https://mykifamily.com/myki-spot) | ✅ supported |
+| MyKi Auto | GPS tracker | [mykifamily.com/myki-auto](https://mykifamily.com/myki-auto) | 🔀 same platform — untested |
+| MyKi Touch | Watch | [mykifamily.com/myki-touch](https://mykifamily.com/myki-touch) | 🔀 same platform — untested |
+| MyKi Watch 4 | Watch | [mykifamily.com/myki-watch](https://mykifamily.com/myki-watch) | 🔀 same platform — untested |
+| MyKi Watch 4 Lite | Watch | [mykifamily.com/myki-watch-4-lite](https://mykifamily.com/myki-watch-4-lite) | 🔀 same platform — untested |
+
+The integration identifies the model from the device firmware. Using a device not yet mapped? Open an issue and attach the `fw` string from the device diagnostics.
+
 ## Trademark
 
 MyKi and the MyKi logo are trademarks of Allterco Consulting Ltd.

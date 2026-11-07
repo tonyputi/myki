@@ -51,6 +51,9 @@
       },
       "steps_today": {
         "name": "Steps today"
+      },
+      "gsm_signal": {
+        "name": "GSM signal"
       }
     },
     "binary_sensor": {

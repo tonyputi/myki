@@ -85,3 +85,36 @@ def authorized_phones(app_data: dict[str, Any]) -> set[str]:
         if isinstance(value, str):
             phones.update(p.strip() for p in value.split(",") if p.strip().isdigit())
     return phones
+
+# Known firmware-prefix -> product model map. Verified live unless noted;
+# extend via issues with the `fw` string from diagnostics.
+FW_MODELS = {
+    "G36W": "MyKi Spot",
+}
+
+MODE_LABELS = {
+    "sos": "MyKi kids tracker",
+    "pet": "MyKi pet tracker",
+    "asset": "MyKi asset tracker",
+}
+
+
+def get_model(app_data: dict[str, Any]) -> str:
+    """Product model from the firmware prefix, falling back to the device mode."""
+    settings = app_data.get("settings") or {}
+    fw = str(settings.get("fw") or "")
+    for prefix, model in FW_MODELS.items():
+        if fw.startswith(prefix):
+            return model
+    mode = str(settings.get("mode") or "")
+    if label := MODE_LABELS.get(mode):
+        return label
+    return "MyKi tracker"
+
+
+def get_gsm_signal(app_data: dict[str, Any]) -> int | None:
+    """GSM signal strength in percent."""
+    try:
+        return int((app_data.get("current") or {}).get("gsmSignalStrength"))
+    except (TypeError, ValueError):
+        return None

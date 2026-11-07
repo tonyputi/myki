@@ -8,12 +8,21 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import MykiCoordinator
 from .entity import MykiEntity
-from .utils import AWAY, distance_meters, get_battery, get_position, get_steps_today, get_zone
+from .utils import (
+    AWAY,
+    distance_meters,
+    get_battery,
+    get_gsm_signal,
+    get_position,
+    get_steps_today,
+    get_zone,
+)
 
 
 async def async_setup_entry(
@@ -29,6 +38,7 @@ async def async_setup_entry(
             MykiZoneSensor(coordinator, wid),
             MykiBatterySensor(coordinator, wid),
             MykiStepsSensor(coordinator, wid),
+            MykiGsmSignalSensor(coordinator, wid),
         )
     )
 
@@ -109,3 +119,19 @@ class MykiStepsSensor(MykiEntity, SensorEntity):
     @property
     def native_value(self) -> int | None:
         return get_steps_today(self.app_data)
+
+
+class MykiGsmSignalSensor(MykiEntity, SensorEntity):
+    _attr_translation_key = "gsm_signal"
+    _attr_icon = "mdi:signal"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = PERCENTAGE
+
+    def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
+        super().__init__(coordinator, watch_id)
+        self._attr_unique_id = f"{watch_id}_gsm_signal"
+
+    @property
+    def native_value(self) -> int | None:
+        return get_gsm_signal(self.app_data)

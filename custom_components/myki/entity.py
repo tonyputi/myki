@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import MykiCoordinator
+from .utils import get_model
 
 
 class MykiEntity(CoordinatorEntity[MykiCoordinator]):
@@ -25,7 +26,7 @@ class MykiEntity(CoordinatorEntity[MykiCoordinator]):
             identifiers={(DOMAIN, watch_id)},
             name=data["watch"].get("nickname") or watch_id,
             manufacturer="Allterco",
-            model="MyKi Spot",
+            model=get_model(data["app"]),
             sw_version=str(settings.get("fw") or None),
         )
 

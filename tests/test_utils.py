@@ -17,6 +17,8 @@ from myki_utils import (  # noqa: E402
     authorized_phones,
     distance_meters,
     get_battery,
+    get_gsm_signal as utils_get_gsm_signal,
+    get_model as utils_get_model,
     get_position,
     get_steps_today,
     get_zone,
@@ -106,3 +108,25 @@ def test_battery_steps_online():
 def test_authorized_phones():
     phones = authorized_phones(payload(35.9, 14.4))
     assert phones == {"0035679248232", "0035699859524"}
+
+
+def test_get_model_spot_fw():
+    p = payload(35.9, 14.4, extra_settings={"fw": "G36W_HENG_0.96_LY_F51_V1.0_2021.09.26"})
+    assert utils_get_model(p) == "MyKi Spot"
+
+
+def test_get_model_mode_fallback():
+    p = payload(35.9, 14.4, extra_settings={"fw": "XX99_UNKNOWN", "mode": "pet"})
+    assert utils_get_model(p) == "MyKi pet tracker"
+
+
+def test_get_model_generic_fallback():
+    p = payload(35.9, 14.4, extra_settings={"fw": ""})
+    assert utils_get_model(p) == "MyKi tracker"
+
+
+def test_gsm_signal():
+    p = payload(35.9, 14.4)
+    p["current"]["gsmSignalStrength"] = "66"
+    assert utils_get_gsm_signal(p) == 66
+    assert utils_get_gsm_signal({"current": {}}) is None
