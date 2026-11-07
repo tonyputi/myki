@@ -3,18 +3,18 @@
 [![CI](https://github.com/tonyputi/myki/actions/workflows/ci.yml/badge.svg)](https://github.com/tonyputi/myki/actions/workflows/ci.yml)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-Unofficial Home Assistant integration for **Allterco MyKi kids GPS watches** (first supported device: **MyKi Spot**). It uses the same cloud API as the MyKi Spot app — no vendor app needed on any phone you don't want it on.
+Unofficial Home Assistant integration for **Allterco MyKi GPS trackers** (first supported device: **MyKi Spot**). It uses the same cloud API as the MyKi Spot app — no vendor app needed on any phone you don't want it on.
 
 > ⚠️ Unofficial, not affiliated with Allterco. Your credentials are stored in Home Assistant (Settings → Device & Services) exactly like any other cloud integration.
 
 ## What you get
 
-Per watch (each kid gets a **device** named after the watch nickname):
+Per tracker (each kid gets a **device** named after the tracker nickname):
 
 | Entity | Description |
 |---|---|
 | `device_tracker.<kid>` | Live GPS position (accuracy + battery) |
-| `sensor.<kid>_zone` | The watch's own safe zones: **"Home" / "School" / … / "Away"** |
+| `sensor.<kid>_zone` | The tracker's own safe zones: **"Home" / "School" / … / "Away"** |
 | `sensor.<kid>_battery` | Battery % |
 | `binary_sensor.<kid>_online` | Watch online/offline |
 | `sensor.<kid>_steps_today` | Today's step count |
@@ -22,12 +22,12 @@ Per watch (each kid gets a **device** named after the watch nickname):
 **Services** (Developer Tools → Actions):
 
 ```yaml
-# Make the watch ring
+# Make the tracker ring
 action: myki.find
 target:
   entity_id: device_tracker.jacopo
 
-# Make the watch call a number (use one from SOS/whitelist)
+# Make the tracker call a number (use one from SOS/whitelist)
 action: myki.make_call
 target:
   entity_id: device_tracker.sofia

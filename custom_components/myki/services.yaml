@@ -1,6 +1,6 @@
 find:
   name: Find watch
-  description: Make the watch ring so you can locate it.
+  description: Make the tracker ring so you can locate it.
   target:
     entity:
       integration: myki
@@ -9,7 +9,7 @@ find:
 make_call:
   name: Make watch call
   description: >-
-    Make the watch place a call to a phone number. The number should be in the
+    Make the tracker place a call to a phone number. The number should be in the
     watch's SOS numbers or whitelist, otherwise the watch may refuse the call.
   target:
     entity:
@@ -18,7 +18,7 @@ make_call:
   fields:
     phone:
       name: Phone number
-      description: The number the watch should call (including country prefix, e.g. +35679060465).
+      description: The number the tracker should call (including country prefix, e.g. +35679060465).
       required: true
       example: "+35679060465"
       selector:

@@ -1,4 +1,4 @@
-"""The MyKi integration: Allterco MyKi kids GPS watches in Home Assistant."""
+"""The MyKi integration: Allterco MyKi GPS trackers in Home Assistant."""
 
 import logging
 

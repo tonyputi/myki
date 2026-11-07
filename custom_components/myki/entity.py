@@ -12,7 +12,7 @@ from .coordinator import MykiCoordinator
 
 
 class MykiEntity(CoordinatorEntity[MykiCoordinator]):
-    """Base entity for one MyKi watch."""
+    """Base entity for one MyKi tracker."""
 
     _attr_has_entity_name = True
 
@@ -25,13 +25,13 @@ class MykiEntity(CoordinatorEntity[MykiCoordinator]):
             identifiers={(DOMAIN, watch_id)},
             name=data["watch"].get("nickname") or watch_id,
             manufacturer="Allterco",
-            model="MyKi Spot watch",
+            model="MyKi Spot",
             sw_version=str(settings.get("fw") or None),
         )
 
     @property
     def app_data(self) -> dict[str, Any]:
-        """The watch's app-data payload ({current, settings, commands})."""
+        """The tracker's app-data payload ({current, settings, commands})."""
         return self.coordinator.data[self.watch_id]["app"]
 
     @property
