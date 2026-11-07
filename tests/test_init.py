@@ -78,7 +78,6 @@ async def test_setup_creates_entities(hass: HomeAssistant, aioclient_mock) -> No
     assert tracker is not None
     assert tracker.attributes["latitude"] == 35.92417
     assert tracker.attributes["longitude"] == 14.45502
-    assert tracker.attributes["battery_level"] == 85
     assert tracker.attributes["zone"] == "Home"
 
     assert hass.states.get(f"sensor.{NICK.lower()}_battery").state == "85"

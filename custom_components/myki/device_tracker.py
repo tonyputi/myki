@@ -50,12 +50,6 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
         return pos[2] if pos else 0
 
     @property
-    def battery_level(self) -> int | None:
-        from .utils import get_battery
-
-        return get_battery(self.app_data)
-
-    @property
     def extra_state_attributes(self) -> dict:
         pos = get_position(self.app_data)
         current = self.app_data.get("current") or {}
