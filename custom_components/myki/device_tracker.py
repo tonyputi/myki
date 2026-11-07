@@ -24,6 +24,7 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
     """A MyKi tracker as a device tracker (named after its device)."""
 
     _attr_name = None
+    _attr_icon = "mdi:crosshairs-gps"
 
     def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
         super().__init__(coordinator, watch_id)
@@ -58,8 +59,16 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
     def extra_state_attributes(self) -> dict:
         pos = get_position(self.app_data)
         current = self.app_data.get("current") or {}
+        settings = self.app_data.get("settings") or {}
         return {
             "zone": get_zone(self.app_data),
             "position_type": pos[3] if pos else None,  # GPS / WiFi / LBS
             "last_fix": current.get("takenat"),
+            "gps_satellites": current.get("gpsSatelites"),
+            "base_stations": current.get("baseStations"),
+            "wifi_networks": len(current.get("wifi") or []),
+            "speed": current.get("speed"),
+            "direction": current.get("direction"),
+            "steps_all": (current.get("steps") or {}).get("allSteps"),
+            "mode": settings.get("mode"),
         }

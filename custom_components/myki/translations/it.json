@@ -51,6 +51,9 @@
       },
       "steps_today": {
         "name": "Passi oggi"
+      },
+      "gsm_signal": {
+        "name": "Segnale GSM"
       }
     },
     "binary_sensor": {
