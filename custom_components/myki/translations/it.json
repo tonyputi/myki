@@ -58,6 +58,15 @@
       },
       "rtt_seconds_left": {
         "name": "Secondi tracking live rimasti"
+      },
+      "gps_satellites": {
+        "name": "Satelliti GPS"
+      },
+      "wifi_networks": {
+        "name": "Reti WiFi"
+      },
+      "base_stations": {
+        "name": "Ripetitori cellulari"
       }
     },
     "binary_sensor": {

@@ -40,6 +40,9 @@ async def async_setup_entry(
             MykiStepsSensor(coordinator, wid),
             MykiGsmSignalSensor(coordinator, wid),
             MykiRttSecondsLeftSensor(coordinator, wid),
+            MykiGpsSatellitesSensor(coordinator, wid),
+            MykiWifiNetworksSensor(coordinator, wid),
+            MykiBaseStationsSensor(coordinator, wid),
         )
     )
 
@@ -155,3 +158,44 @@ class MykiRttSecondsLeftSensor(MykiEntity, SensorEntity):
             return int((self.app_data.get("current") or {}).get("RTT_secondsLeft"))
         except (TypeError, ValueError):
             return None
+
+
+class _MykiCurrentIntSensor(MykiEntity, SensorEntity):
+    """Diagnostic counter from `current`, with fallback None."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _key: str
+
+    def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
+        super().__init__(coordinator, watch_id)
+        self._attr_unique_id = f"{watch_id}_{self._key}"
+
+    @property
+    def native_value(self) -> int | None:
+        try:
+            return int((self.app_data.get("current") or {}).get(self._key))
+        except (TypeError, ValueError):
+            return None
+
+
+class MykiGpsSatellitesSensor(_MykiCurrentIntSensor):
+    _attr_translation_key = "gps_satellites"
+    _attr_icon = "mdi:satellite-variant"
+    _key = "gpsSatelites"
+
+
+class MykiWifiNetworksSensor(_MykiCurrentIntSensor):
+    _attr_translation_key = "wifi_networks"
+    _attr_icon = "mdi:wifi"
+    _key = "wifi_networks"
+
+    @property
+    def native_value(self) -> int | None:
+        return len((self.app_data.get("current") or {}).get("wifi") or [])
+
+
+class MykiBaseStationsSensor(_MykiCurrentIntSensor):
+    _attr_translation_key = "base_stations"
+    _attr_icon = "mdi:radio-tower"
+    _key = "baseStations"

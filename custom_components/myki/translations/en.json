@@ -58,6 +58,15 @@
       },
       "rtt_seconds_left": {
         "name": "Live tracking seconds left"
+      },
+      "gps_satellites": {
+        "name": "GPS satellites"
+      },
+      "wifi_networks": {
+        "name": "WiFi networks"
+      },
+      "base_stations": {
+        "name": "Cell towers"
       }
     },
     "binary_sensor": {
