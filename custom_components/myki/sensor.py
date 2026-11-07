@@ -5,10 +5,12 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
 from .coordinator import MykiCoordinator
 from .entity import MykiEntity
 from .utils import AWAY, distance_meters, get_battery, get_position, get_steps_today, get_zone
@@ -16,9 +18,10 @@ from .utils import AWAY, distance_meters, get_battery, get_position, get_steps_t
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    coordinator: MykiCoordinator,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         entity
         for wid in coordinator.data
@@ -34,6 +37,7 @@ class MykiZoneSensor(MykiEntity, SensorEntity):
     """Which safe zone (from the watch configuration) the kid is in."""
 
     _attr_translation_key = "zone"
+    _attr_device_class = SensorDeviceClass.ENUM
     _attr_icon = "mdi:map-marker-radius"
 
     def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:

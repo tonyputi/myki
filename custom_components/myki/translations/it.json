@@ -38,16 +38,25 @@
     }
   },
   "entity": {
-    "device_tracker": {
-      "tracker": { "name": "Tracker" }
-    },
+    "device_tracker": {},
     "sensor": {
-      "zone": { "name": "Zona", "state": { "away": "Fuori zona" } },
-      "battery": { "name": "Batteria" },
-      "steps_today": { "name": "Passi oggi" }
+      "zone": {
+        "name": "Zona",
+        "state": {
+          "away": "Fuori zona"
+        }
+      },
+      "battery": {
+        "name": "Batteria"
+      },
+      "steps_today": {
+        "name": "Passi oggi"
+      }
     },
     "binary_sensor": {
-      "online": { "name": "Online" }
+      "online": {
+        "name": "Online"
+      }
     }
   },
   "services": {

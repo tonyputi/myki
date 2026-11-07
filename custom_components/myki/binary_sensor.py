@@ -4,9 +4,11 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
 from .coordinator import MykiCoordinator
 from .entity import MykiEntity
 from .utils import is_online
@@ -14,9 +16,10 @@ from .utils import is_online
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    coordinator: MykiCoordinator,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(MykiOnlineSensor(coordinator, wid) for wid in coordinator.data)
 
 
