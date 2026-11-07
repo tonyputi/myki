@@ -69,11 +69,13 @@ More in [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
 ## Installation
 
-**HACS (custom repositories):** Settings → HACS → ⋮ Custom repositories → `https://github.com/tonyputi/myki` (category *Integration*), then install **MyKi**.
+**Marketplace (Home Assistant 2026.11+):** Settings → Marketplace → add `https://github.com/tonyputi/myki` as a custom repository (requires connecting your GitHub account once), then install **MyKi** — setup starts immediately, no restart needed.
+
+**Older versions (HACS):** HACS → ⋮ Custom repositories → `https://github.com/tonyputi/myki` (category *Integration*), install **MyKi**, restart.
 
 **Manual:** copy `custom_components/myki/` into your Home Assistant `config/custom_components/myki/`, restart.
 
-Then **Settings → Devices & Services → Add Integration → MyKi**, enter the email and password of your MyKi Spot account.
+Then enter the email and password of your MyKi Spot account.
 
 Options (Configure on the integration card): polling interval in seconds (default 60, minimum 10 — the vendor app polls every 10 s).
 
