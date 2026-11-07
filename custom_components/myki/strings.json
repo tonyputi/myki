@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MyKi",
+        "description": "Connect to your MyKi (Allterco) account. The credentials are the same you use in the MyKi Spot app.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate MyKi",
+        "description": "The stored password is no longer valid for {email}.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the MyKi cloud. Try again.",
+      "invalid_auth": "Invalid email or password.",
+      "no_watches": "This account has no watches. Add one in the MyKi app first."
+    },
+    "abort": {
+      "already_configured": "This MyKi account is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MyKi options",
+        "data": {
+          "scan_interval": "Seconds between updates (minimum 10)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "tracker": { "name": "Tracker" }
+    },
+    "sensor": {
+      "zone": { "name": "Zone", "state": { "away": "Away" } },
+      "battery": { "name": "Battery" },
+      "steps_today": { "name": "Steps today" }
+    },
+    "binary_sensor": {
+      "online": { "name": "Online" }
+    }
+  },
+  "services": {
+    "find": {
+      "name": "Find watch",
+      "description": "Make the watch ring so you can locate it."
+    },
+    "make_call": {
+      "name": "Make watch call",
+      "description": "Make the watch place a call to a phone number."
+    }
+  }
+}

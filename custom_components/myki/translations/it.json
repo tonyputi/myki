@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MyKi",
+        "description": "Connetti il tuo account MyKi (Allterco). Le credenziali sono le stesse che usi nell'app MyKi Spot.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Riautentica MyKi",
+        "description": "La password salvata non è più valida per {email}.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connessione al cloud MyKi non riuscita. Riprova.",
+      "invalid_auth": "Email o password non validi.",
+      "no_watches": "Questo account non ha orologi. Aggiungine uno prima dall'app MyKi."
+    },
+    "abort": {
+      "already_configured": "Questo account MyKi è già configurato.",
+      "reauth_successful": "Riautenticazione riuscita."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni MyKi",
+        "data": {
+          "scan_interval": "Secondi tra gli aggiornamenti (minimo 10)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "tracker": { "name": "Tracker" }
+    },
+    "sensor": {
+      "zone": { "name": "Zona", "state": { "away": "Fuori zona" } },
+      "battery": { "name": "Batteria" },
+      "steps_today": { "name": "Passi oggi" }
+    },
+    "binary_sensor": {
+      "online": { "name": "Online" }
+    }
+  },
+  "services": {
+    "find": {
+      "name": "Trova orologio",
+      "description": "Fa suonare l'orologio per trovarlo."
+    },
+    "make_call": {
+      "name": "Fai chiamare l'orologio",
+      "description": "Fa chiamare un numero di telefono dall'orologio."
+    }
+  }
+}
