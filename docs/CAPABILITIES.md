@@ -57,6 +57,7 @@ All `GET /api/watch/app-data?id=…` — raw telemetry the app mostly ignores:
 | `GET /api/watch/history/events` | event log (`event_name`, `timestamp`) | ✅ |
 | `GET /api/watch/history/steps` | step history | ✅ |
 | `GET /api/watch/rtt?duration=` | real-time tracking window | ✅ |
+| `GET /api/watch/save-settings?key=safe_zone_N` | **more than 2 safe zones** (verified live: `safe_zone_3` accepted and persisted; the app only shows 2) | ❌ |
 
 Auth: HTTP Basic (email:password) on `https://spot.myki.pet:6020/api/`. No tokens/sessions.
 Related family backend (other Allterco devices, app `com.allterco.mykifamily`): `https://mj1-1.allterco.net:8020/japi` — different API, future work.
