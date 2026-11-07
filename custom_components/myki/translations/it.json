@@ -32,7 +32,8 @@
       "init": {
         "title": "Opzioni MyKi",
         "data": {
-          "scan_interval": "Secondi tra gli aggiornamenti (minimo 10)"
+          "scan_interval": "Secondi tra gli aggiornamenti (minimo 10)",
+          "call_me_number": "Numero 'Chiamami' (usato dal pulsante Chiamami; meglio se tra i numeri SOS o in whitelist)"
         }
       }
     }
@@ -59,6 +60,22 @@
     "binary_sensor": {
       "online": {
         "name": "Online"
+      }
+    },
+    "button": {
+      "find": {
+        "name": "Trova"
+      },
+      "call_me": {
+        "name": "Chiamami"
+      }
+    },
+    "number": {
+      "ring_volume": {
+        "name": "Volume suoneria"
+      },
+      "call_volume": {
+        "name": "Volume chiamata"
       }
     }
   },

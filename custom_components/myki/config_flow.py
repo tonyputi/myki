@@ -13,7 +13,13 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
 
 from .api import MykiAuthError, MykiClient, MykiError
-from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN, MIN_SCAN_INTERVAL
+from .const import (
+    CONF_CALL_ME_NUMBER,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    MIN_SCAN_INTERVAL,
+)
 
 STEP_USER_SCHEMA = vol.Schema(
     {
@@ -88,13 +94,19 @@ class MykiOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
         current = self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        current_number = self.config_entry.options.get(CONF_CALL_ME_NUMBER, "")
         schema = vol.Schema(
             {
                 vol.Required(
                     CONF_SCAN_INTERVAL,
                     default=current,
                     description={"suggested_value": current},
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL))
+                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
+                vol.Optional(
+                    CONF_CALL_ME_NUMBER,
+                    default=current_number if current_number else "",
+                    description={"suggested_value": current_number},
+                ): str,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

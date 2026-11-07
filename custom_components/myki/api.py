@@ -57,3 +57,11 @@ class MykiClient:
         from urllib.parse import quote
 
         await self._get(f"/watch/call?id={watch_id}&phone={quote(phone)}")
+
+    async def set_ring_volume(self, watch_id: str, level: int) -> None:
+        """Set the ringtone volume (1-4, layout-verified in the vendor app)."""
+        await self._get(f"/watch/ringvolset?id={watch_id}&volume={level}")
+
+    async def set_call_volume(self, watch_id: str, level: int) -> None:
+        """Set the call volume (1-6, layout-verified in the vendor app)."""
+        await self._get(f"/watch/callvolset?id={watch_id}&volume={level}")
