@@ -1,0 +1,14 @@
+{
+  "domain": "myki",
+  "name": "MyKi",
+  "codeowners": ["@tonyputi"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/tonyputi/myki",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/tonyputi/myki/issues",
+  "loggers": ["myki"],
+  "requirements": [],
+  "version": "1.0.0"
+}
