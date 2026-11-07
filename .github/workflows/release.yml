@@ -6,28 +6,13 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     permissions:
       contents: write
       issues: write
       pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-      - name: Install semantic-release
-        run: |
-          npm install -g \
-            semantic-release \
-            @semantic-release/commit-analyzer \
-            @semantic-release/release-notes-generator \
-            @semantic-release/exec \
-            @semantic-release/git \
-            @semantic-release/github
-      - name: Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+    uses: tonyputi/.github/.github/workflows/generate-semantic-release.yml@main
+    with:
+      github_app_id: ${{ vars.GH_APP_ID }}
+    secrets:
+      github_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
