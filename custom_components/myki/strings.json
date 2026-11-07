@@ -20,7 +20,7 @@
     "error": {
       "cannot_connect": "Failed to connect to the MyKi cloud. Try again.",
       "invalid_auth": "Invalid email or password.",
-      "no_watches": "This account has no watches. Add one in the MyKi app first."
+      "no_watches": "This account has no MyKi trackers. Add one in the MyKi app first."
     },
     "abort": {
       "already_configured": "This MyKi account is already configured.",
@@ -61,12 +61,12 @@
   },
   "services": {
     "find": {
-      "name": "Find watch",
-      "description": "Make the watch ring so you can locate it."
+      "name": "Find tracker",
+      "description": "Make the tracker ring so you can locate it."
     },
     "make_call": {
-      "name": "Make watch call",
-      "description": "Make the watch place a call to a phone number."
+      "name": "Make tracker call",
+      "description": "Make the tracker place a call to a phone number."
     }
   }
 }
