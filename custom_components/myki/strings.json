@@ -55,11 +55,17 @@
       },
       "gsm_signal": {
         "name": "GSM signal"
+      },
+      "rtt_seconds_left": {
+        "name": "Live tracking seconds left"
       }
     },
     "binary_sensor": {
       "online": {
         "name": "Online"
+      },
+      "fresh_data": {
+        "name": "Fresh data"
       }
     },
     "button": {
@@ -68,6 +74,9 @@
       },
       "call_me": {
         "name": "Call me"
+      },
+      "live_tracking": {
+        "name": "Live tracking"
       }
     },
     "number": {
@@ -76,6 +85,11 @@
       },
       "call_volume": {
         "name": "Call volume"
+      }
+    },
+    "event": {
+      "events": {
+        "name": "Events"
       }
     }
   },

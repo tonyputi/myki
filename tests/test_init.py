@@ -4,6 +4,7 @@ These would have caught the platform setup signature bug found in the field.
 """
 
 import json
+import time
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -35,10 +36,10 @@ APP_DATA = {
         "current": {
             "takenat": "2026-11-07 12:37:29",
             "position": {"type": "WiFi", "latitude": 35.92417, "longitude": 14.45502, "accuracy": 25},
-            "battery": "85",
+            "battery": "85", "RTT_secondsLeft": "0",
             "steps": {"allSteps": 1353915, "todaySteps": 4321},
         },
-        "settings": {"online": "1", "nickname": NICK, **ZONES},
+        "settings": {"online": "1", "nickname": NICK, "msisdn": "+35679060465", "mcc_mnc": "27821", "last_data_package": str(int(time.time())), **ZONES},
         "commands": {"sos_phone_1": "0035679248232", "whitelist_1": "0035679248232,0035699859524", "volume_ring": "4", "volume_call": "6"},
     },
 }
@@ -47,6 +48,13 @@ APP_DATA = {
 def _mock_cloud(aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(f"{BASE_URL}/watch", json=WATCHES)
     aioclient_mock.get(f"{BASE_URL}/watch/app-data?id={WATCH_ID}", json=APP_DATA)
+    aioclient_mock.get(
+        f"{BASE_URL}/watch/history/events?id={WATCH_ID}",
+        json={"isok": True, "data": {"events": [
+            {"event_name": "low_battery", "timestamp": "1794000000"},
+            {"event_name": "sos_alarm", "timestamp": "1794010000"},
+        ]}},
+    )
 
 
 async def _setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> MockConfigEntry:
@@ -142,3 +150,26 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("callvolset" in u and "volume=5" in u for u in urls)
+
+
+async def test_p3b_entities(hass: HomeAssistant, aioclient_mock) -> None:
+    await _setup(hass, aioclient_mock)
+    aioclient_mock.get(f"{BASE_URL}/watch/rtt?id={WATCH_ID}&duration=10", json={"isok": True})
+
+    kid = NICK.lower()
+    ev = hass.states.get(f"event.{kid}_events")
+    assert ev is not None
+    assert "sos_alarm" in ev.attributes["event_types"]
+    assert "low_battery" in ev.attributes["event_types"]
+
+    assert hass.states.get(f"sensor.{kid}_live_tracking_seconds_left").state == "0"
+    assert hass.states.get(f"binary_sensor.{kid}_fresh_data").state == "on"
+
+    tracker = hass.states.get(f"device_tracker.{kid}")
+    assert tracker.attributes["phone"] is not None
+
+    await hass.services.async_call(
+        "button", "press", {"entity_id": f"button.{kid}_live_tracking"}, blocking=True
+    )
+    urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
+    assert any("watch/rtt" in u and "duration=10" in u for u in urls)

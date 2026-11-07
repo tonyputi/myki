@@ -65,3 +65,11 @@ class MykiClient:
     async def set_call_volume(self, watch_id: str, level: int) -> None:
         """Set the call volume (1-6, layout-verified in the vendor app)."""
         await self._get(f"/watch/callvolset?id={watch_id}&volume={level}")
+
+    async def events(self, watch_id: str) -> list[dict[str, Any]]:
+        """Device event log: [{event_name, timestamp}]."""
+        return (await self._get(f"/watch/history/events?id={watch_id}")).get("events") or []
+
+    async def start_rtt(self, watch_id: str, duration_minutes: int = 10) -> None:
+        """Start real-time tracking (device reports at high frequency)."""
+        await self._get(f"/watch/rtt?id={watch_id}&duration={duration_minutes}")
