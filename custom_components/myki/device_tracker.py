@@ -1,9 +1,11 @@
 """device_tracker entities: GPS position and battery per watch."""
 
 from homeassistant.components.device_tracker import SourceType, TrackerEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
 from .coordinator import MykiCoordinator
 from .entity import MykiEntity
 from .utils import get_position, get_zone
@@ -11,16 +13,17 @@ from .utils import get_position, get_zone
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    coordinator: MykiCoordinator,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(MykiTrackerEntity(coordinator, wid) for wid in coordinator.data)
 
 
 class MykiTrackerEntity(MykiEntity, TrackerEntity):
-    """A MyKi watch as a device tracker."""
+    """A MyKi tracker as a device tracker (named after its device)."""
 
-    _attr_translation_key = "tracker"
+    _attr_name = None
 
     def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
         super().__init__(coordinator, watch_id)
