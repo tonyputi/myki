@@ -32,7 +32,8 @@
       "init": {
         "title": "MyKi options",
         "data": {
-          "scan_interval": "Seconds between updates (minimum 10)"
+          "scan_interval": "Seconds between updates (minimum 10)",
+          "call_me_number": "'Call me' phone number (used by the Call me button; should be in SOS numbers or whitelist)"
         }
       }
     }
@@ -59,6 +60,22 @@
     "binary_sensor": {
       "online": {
         "name": "Online"
+      }
+    },
+    "button": {
+      "find": {
+        "name": "Find"
+      },
+      "call_me": {
+        "name": "Call me"
+      }
+    },
+    "number": {
+      "ring_volume": {
+        "name": "Ring volume"
+      },
+      "call_volume": {
+        "name": "Call volume"
       }
     }
   },

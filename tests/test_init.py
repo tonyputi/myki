@@ -39,7 +39,7 @@ APP_DATA = {
             "steps": {"allSteps": 1353915, "todaySteps": 4321},
         },
         "settings": {"online": "1", "nickname": NICK, **ZONES},
-        "commands": {"sos_phone_1": "0035679248232", "whitelist_1": "0035679248232,0035699859524"},
+        "commands": {"sos_phone_1": "0035679248232", "whitelist_1": "0035679248232,0035699859524", "volume_ring": "4", "volume_call": "6"},
     },
 }
 
@@ -97,3 +97,48 @@ async def test_unload(hass: HomeAssistant, aioclient_mock) -> None:
     assert entry.state is ConfigEntryState.NOT_LOADED
 
 
+
+
+async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None:
+    _mock_cloud(aioclient_mock)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
+        options={"call_me_number": "+35679060465"},
+        unique_id="test@example.com",
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    aioclient_mock.get(f"{BASE_URL}/watch/find?id={WATCH_ID}", json={"isok": True})
+    aioclient_mock.get(
+        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B35679060465", json={"isok": True}
+    )
+    aioclient_mock.get(
+        f"{BASE_URL}/watch/callvolset?id={WATCH_ID}&volume=5", json={"isok": True}
+    )
+    # buttons exist; call_me available only with the option set
+    assert hass.states.get(f"button.{NICK.lower()}_find").state == "unknown"
+    assert hass.states.get(f"button.{NICK.lower()}_call_me").state == "unknown"
+
+    await hass.services.async_call(
+        "button", "press", {"entity_id": f"button.{NICK.lower()}_find"}, blocking=True
+    )
+    await hass.services.async_call(
+        "button", "press", {"entity_id": f"button.{NICK.lower()}_call_me"}, blocking=True
+    )
+    urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
+    assert any("watch/find" in u for u in urls)
+    assert any("watch/call" in u and "phone=%2B35679060465" in u for u in urls)
+
+    # volume sliders reflect the payload and can be set
+    assert hass.states.get(f"number.{NICK.lower()}_ring_volume").state == "4"
+    assert hass.states.get(f"number.{NICK.lower()}_call_volume").state == "6"
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": f"number.{NICK.lower()}_call_volume", "value": 5},
+        blocking=True,
+    )
+    urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
+    assert any("callvolset" in u and "volume=5" in u for u in urls)
