@@ -198,3 +198,19 @@ async def test_make_call_service(hass: HomeAssistant, aioclient_mock) -> None:
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("watch/call" in u and "phone=%2B35679060465" in u for u in urls)
+
+
+async def test_unique_ids_are_stable(hass: HomeAssistant, aioclient_mock) -> None:
+    """unique_id must never change: HA would orphan the old entities."""
+    from homeassistant.helpers import entity_registry as er
+
+    await _setup(hass, aioclient_mock)
+    registry = er.async_get(hass)
+    uids = {
+        e.unique_id
+        for e in registry.entities.values()
+        if e.platform == "myki" and e.domain == "sensor"
+    }
+    assert f"{WATCH_ID}_gsm_signal" in uids
+    assert f"{WATCH_ID}_rtt_seconds_left" in uids
+    assert f"{WATCH_ID}_gps_satellites" not in uids  # satellites keep the payload key
