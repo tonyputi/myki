@@ -22,6 +22,7 @@ from myki_utils import (  # noqa: E402
     get_position,
     get_steps_today,
     get_zone,
+    get_zone as utils_get_zone,  # noqa: E402
     is_online,
 )
 
@@ -130,3 +131,8 @@ def test_gsm_signal():
     p["current"]["gsmSignalStrength"] = "66"
     assert utils_get_gsm_signal(p) == 66
     assert utils_get_gsm_signal({"current": {}}) is None
+
+
+def test_safe_zone_invalid_values():
+    p = payload(35.9, 14.4, extra_settings={"safe_zone_3": "null", "safe_zone_4": "[]", "safe_zone_5": "{bad"})
+    assert utils_get_zone(p) in ("Home", AWAY)  # must not raise

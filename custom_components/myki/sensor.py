@@ -1,4 +1,4 @@
-"""Sensors: safe-zone state, battery and steps per watch."""
+"""Sensors: safe-zone state, battery, steps and radio/positioning diagnostics."""
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -18,8 +18,8 @@ from .utils import (
     AWAY,
     distance_meters,
     get_battery,
-    get_gsm_signal,
     get_position,
+    get_safe_zones,
     get_steps_today,
     get_zone,
 )
@@ -48,7 +48,7 @@ async def async_setup_entry(
 
 
 class MykiZoneSensor(MykiEntity, SensorEntity):
-    """Which safe zone (from the watch configuration) the kid is in."""
+    """Which safe zone (from the tracker configuration) the kid is in."""
 
     _attr_translation_key = "zone"
     _attr_device_class = SensorDeviceClass.ENUM
@@ -63,36 +63,18 @@ class MykiZoneSensor(MykiEntity, SensorEntity):
         return get_zone(self.app_data)
 
     @property
-    def options(self) -> list[str] | None:
-        zones = []
-        settings = self.app_data.get("settings") or {}
-        import json
-
-        for key in sorted(k for k in settings if k.startswith("safe_zone")):
-            try:
-                zone = json.loads(settings[key])
-                if int(zone.get("active", 0)):
-                    zones.append(str(zone.get("name") or key).strip())
-            except (ValueError, KeyError, TypeError):
-                continue
-        return [*zones, AWAY]
+    def options(self) -> list[str]:
+        return [z["name"] for z in get_safe_zones(self.app_data) if z["active"]] + [AWAY]
 
     @property
     def extra_state_attributes(self) -> dict:
-        import json
-
-        attrs: dict = {}
         pos = get_position(self.app_data)
-        settings = self.app_data.get("settings") or {}
-        for key in sorted(k for k in settings if k.startswith("safe_zone")):
-            try:
-                zone = json.loads(settings[key])
-                name = str(zone.get("name") or key).strip()
-                attrs[f"distance_to_{name}"] = round(
-                    distance_meters(pos[0], pos[1], float(zone["lat"]), float(zone["lon"]))
+        attrs: dict = {}
+        for zone in get_safe_zones(self.app_data):
+            if pos:
+                attrs[f"distance_to_{zone['name']}"] = round(
+                    distance_meters(pos[0], pos[1], zone["lat"], zone["lon"])
                 )
-            except (ValueError, KeyError, TypeError):
-                continue
         return attrs
 
 
@@ -125,43 +107,8 @@ class MykiStepsSensor(MykiEntity, SensorEntity):
         return get_steps_today(self.app_data)
 
 
-class MykiGsmSignalSensor(MykiEntity, SensorEntity):
-    _attr_translation_key = "gsm_signal"
-    _attr_icon = "mdi:signal"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = PERCENTAGE
-
-    def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
-        super().__init__(coordinator, watch_id)
-        self._attr_unique_id = f"{watch_id}_gsm_signal"
-
-    @property
-    def native_value(self) -> int | None:
-        return get_gsm_signal(self.app_data)
-
-
-class MykiRttSecondsLeftSensor(MykiEntity, SensorEntity):
-    _attr_translation_key = "rtt_seconds_left"
-    _attr_icon = "mdi:clock-fast"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
-
-    def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
-        super().__init__(coordinator, watch_id)
-        self._attr_unique_id = f"{watch_id}_rtt_seconds_left"
-
-    @property
-    def native_value(self) -> int | None:
-        try:
-            return int((self.app_data.get("current") or {}).get("RTT_secondsLeft"))
-        except (TypeError, ValueError):
-            return None
-
-
 class _MykiCurrentIntSensor(MykiEntity, SensorEntity):
-    """Diagnostic counter from `current`, with fallback None."""
+    """Integer counter from `app_data.current.<key>`, None when missing."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -177,6 +124,20 @@ class _MykiCurrentIntSensor(MykiEntity, SensorEntity):
             return int((self.app_data.get("current") or {}).get(self._key))
         except (TypeError, ValueError):
             return None
+
+
+class MykiGsmSignalSensor(_MykiCurrentIntSensor):
+    _attr_translation_key = "gsm_signal"
+    _attr_icon = "mdi:signal"
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _key = "gsmSignalStrength"
+
+
+class MykiRttSecondsLeftSensor(_MykiCurrentIntSensor):
+    _attr_translation_key = "rtt_seconds_left"
+    _attr_icon = "mdi:clock-fast"
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _key = "RTT_secondsLeft"
 
 
 class MykiGpsSatellitesSensor(_MykiCurrentIntSensor):

@@ -77,13 +77,15 @@ class MykiConfigFlow(ConfigFlow, domain=DOMAIN):
             except MykiError:
                 ok = False
             if ok:
-                self.hass.config_entries.async_update_reauth(
-                    entry, {**entry.data, CONF_PASSWORD: user_input[CONF_PASSWORD]}
+                return self.async_update_reload_and_abort(
+                    entry, data_updates={CONF_PASSWORD: user_input[CONF_PASSWORD]}
                 )
-                return self.async_abort(reason="reauth_successful")
             errors["base"] = "invalid_auth"
         return self.async_show_form(
-            step_id="reauth_confirm", data_schema=REAUTH_SCHEMA, errors=errors
+            step_id="reauth_confirm",
+            data_schema=REAUTH_SCHEMA,
+            errors=errors,
+            description_placeholders={"email": entry.data[CONF_EMAIL]},
         )
 
 

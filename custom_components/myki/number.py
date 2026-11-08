@@ -61,6 +61,7 @@ class MykiRingVolume(MykiVolumeEntity):
             await self.coordinator.client.set_ring_volume(self.watch_id, int(value))
         except MykiError as err:
             raise HomeAssistantError(f"MyKi ring volume failed: {err}") from err
+        await self.coordinator.async_request_refresh()
 
 
 class MykiCallVolume(MykiVolumeEntity):
@@ -74,3 +75,4 @@ class MykiCallVolume(MykiVolumeEntity):
             await self.coordinator.client.set_call_volume(self.watch_id, int(value))
         except MykiError as err:
             raise HomeAssistantError(f"MyKi call volume failed: {err}") from err
+        await self.coordinator.async_request_refresh()
