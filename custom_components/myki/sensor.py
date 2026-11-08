@@ -113,10 +113,13 @@ class _MykiCurrentIntSensor(MykiEntity, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_state_class = SensorStateClass.MEASUREMENT
     _key: str
+    # unique ids must never change: _uid pins the historical suffix when the
+    # payload key differs (default: the payload key)
+    _uid: str = ""
 
     def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
         super().__init__(coordinator, watch_id)
-        self._attr_unique_id = f"{watch_id}_{self._key}"
+        self._attr_unique_id = f"{watch_id}_{self._uid or self._key}"
 
     @property
     def native_value(self) -> int | None:
@@ -131,6 +134,7 @@ class MykiGsmSignalSensor(_MykiCurrentIntSensor):
     _attr_icon = "mdi:signal"
     _attr_native_unit_of_measurement = PERCENTAGE
     _key = "gsmSignalStrength"
+    _uid = "gsm_signal"
 
 
 class MykiRttSecondsLeftSensor(_MykiCurrentIntSensor):
@@ -138,6 +142,7 @@ class MykiRttSecondsLeftSensor(_MykiCurrentIntSensor):
     _attr_icon = "mdi:clock-fast"
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _key = "RTT_secondsLeft"
+    _uid = "rtt_seconds_left"
 
 
 class MykiGpsSatellitesSensor(_MykiCurrentIntSensor):
