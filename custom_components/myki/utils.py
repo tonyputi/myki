@@ -4,7 +4,7 @@ import json
 import math
 from typing import Any
 
-AWAY = "Away"
+AWAY = "away"
 
 
 def distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -30,26 +30,39 @@ def get_position(app_data: dict[str, Any]) -> tuple[float, float, int, str] | No
         return None
 
 
+def get_safe_zones(app_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Parsed safe zones ({name, lat, lon, radius_km, active}), key order."""
+    zones = []
+    for key in sorted(k for k in (app_data.get("settings") or {}) if k.startswith("safe_zone")):
+        raw = app_data["settings"][key]
+        try:
+            zone = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(zone, dict):
+            continue
+        zones.append(
+            {
+                "key": key,
+                "name": str(zone.get("name") or key).strip(),
+                "lat": float(zone["lat"]),
+                "lon": float(zone["lon"]),
+                # the cloud API stores the radius in kilometers
+                "radius_km": float(zone["radius"]),
+                "active": bool(int(zone.get("active", 0))),
+            }
+        )
+    return zones
+
+
 def get_zone(app_data: dict[str, Any]) -> str | None:
-    """Name of the active safe zone containing the watch, else AWAY."""
+    """Name of the active safe zone containing the tracker, else AWAY."""
     here = get_position(app_data)
     if here is None:
         return None
-    lat, lon = here[0], here[1]
-    settings = app_data.get("settings") or {}
-    for key in sorted(k for k in settings if k.startswith("safe_zone")):
-        raw = settings.get(key)
-        if not raw:
-            continue
-        try:
-            zone = json.loads(raw)
-            if not int(zone.get("active", 0)):
-                continue
-            # the cloud API stores the radius in kilometers
-            if distance_meters(lat, lon, float(zone["lat"]), float(zone["lon"])) <= float(zone["radius"]) * 1000:
-                return str(zone.get("name") or key).strip()
-        except (ValueError, KeyError, TypeError):
-            continue
+    for zone in get_safe_zones(app_data):
+        if zone["active"] and distance_meters(here[0], here[1], zone["lat"], zone["lon"]) <= zone["radius_km"] * 1000:
+            return zone["name"]
     return AWAY
 
 
@@ -85,6 +98,7 @@ def authorized_phones(app_data: dict[str, Any]) -> set[str]:
         if isinstance(value, str):
             phones.update(p.strip() for p in value.split(",") if p.strip().isdigit())
     return phones
+
 
 # Known firmware-prefix -> product model map. Verified live unless noted;
 # extend via issues with the `fw` string from diagnostics.

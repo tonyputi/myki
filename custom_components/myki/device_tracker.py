@@ -1,14 +1,23 @@
-"""device_tracker entities: GPS position and battery per watch."""
+"""device_tracker entities: GPS position of each tracker, plus the find/call services."""
+
+import logging
 
 from homeassistant.components.device_tracker import SourceType, TrackerEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_get_current_platform
+import voluptuous as vol
 
-from .const import DOMAIN
+from .api import MykiError
+from .const import ATTR_PHONE, DOMAIN, SERVICE_FIND, SERVICE_MAKE_CALL
 from .coordinator import MykiCoordinator
 from .entity import MykiEntity
-from .utils import get_position, get_zone
+from .utils import authorized_phones, get_position, get_zone
+
+_LOGGER = logging.getLogger(__name__)
+
+MAKE_CALL_SCHEMA = {vol.Required(ATTR_PHONE): str}
 
 
 async def async_setup_entry(
@@ -17,6 +26,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
+    platform = async_get_current_platform()
+    platform.async_register_entity_service(SERVICE_FIND, None, "async_find")
+    platform.async_register_entity_service(SERVICE_MAKE_CALL, MAKE_CALL_SCHEMA, "async_make_call")
     async_add_entities(MykiTrackerEntity(coordinator, wid) for wid in coordinator.data)
 
 
@@ -29,6 +41,25 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
     def __init__(self, coordinator: MykiCoordinator, watch_id: str) -> None:
         super().__init__(coordinator, watch_id)
         self._attr_unique_id = f"{watch_id}_tracker"
+
+    async def async_find(self) -> None:
+        """Entity service `myki.find`: ring the tracker."""
+        try:
+            await self.coordinator.client.find(self.watch_id)
+        except MykiError as err:
+            raise HomeAssistantError(f"MyKi find failed: {err}") from err
+
+    async def async_make_call(self, phone: str) -> None:
+        """Entity service `myki.make_call`: the tracker calls the given number."""
+        if phone not in authorized_phones(self.app_data):
+            # the device refuses numbers outside SOS/whitelist
+            _LOGGER.warning(
+                "%s is not in the tracker's SOS/whitelist; the call may be refused", phone
+            )
+        try:
+            await self.coordinator.client.make_call(self.watch_id, phone)
+        except MykiError as err:
+            raise HomeAssistantError(f"MyKi call failed: {err}") from err
 
     @property
     def source_type(self) -> SourceType:

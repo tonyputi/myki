@@ -183,3 +183,18 @@ async def test_diagnostic_sensors(hass: HomeAssistant, aioclient_mock) -> None:
     assert hass.states.get(f"sensor.{kid}_gps_satellites").state == "3"
     assert hass.states.get(f"sensor.{kid}_wifi_networks").state == "2"
     assert hass.states.get(f"sensor.{kid}_cell_towers").state == "4"
+
+
+async def test_make_call_service(hass: HomeAssistant, aioclient_mock) -> None:
+    await _setup(hass, aioclient_mock)
+    aioclient_mock.get(
+        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B35679060465", json={"isok": True}
+    )
+    await hass.services.async_call(
+        "myki",
+        "make_call",
+        {"entity_id": f"device_tracker.{NICK.lower()}", "phone": "+35679060465"},
+        blocking=True,
+    )
+    urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
+    assert any("watch/call" in u and "phone=%2B35679060465" in u for u in urls)

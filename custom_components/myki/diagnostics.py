@@ -1,51 +1,54 @@
 """Diagnostics for the MyKi integration (sensitive fields redacted)."""
 
+import re
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.redact import async_redact_data
 
 from .api import BASE_URL
+from .const import CONF_SCAN_INTERVAL, DOMAIN
 from .coordinator import MykiCoordinator
 
-_REDACT_KEYS = {
-    "msisdn", "nickname",  # nickname is a child's name
-    "wifi", "whitelist_1", "whitelist_2", "phonebook_1",
-    "sos_phone_1", "sos_phone_2", "sos_phone_3", "center_number",
-    "password", "fw",
+# keys matched at any depth; patterns for numbered siblings
+_TO_REDACT: set[str | re.Pattern[str]] = {
+    "email",
+    "password",
+    "msisdn",
+    "nickname",  # a child's name
+    "phone",
+    "latitude",
+    "longitude",
+    "wifi",
+    "fw",
+    re.compile(r"^sos_phone_\d+$"),
+    re.compile(r"^whitelist_\d+$"),
+    re.compile(r"^phonebook_\d+$"),
+    re.compile(r"^safe_zone_\d+$"),
+    "center_number",
 }
-
-
-def _redact(value: Any, keys: set[str] = _REDACT_KEYS) -> Any:
-    if isinstance(value, dict):
-        return {
-            k: ("REDACTED" if k in keys else _redact(v, keys)) for k, v in value.items()
-        }
-    if isinstance(value, list):
-        return [_redact(v, keys) for v in value]
-    if isinstance(value, str) and "," in value and all(p.strip().isdigit() for p in value.split(",")):
-        return "REDACTED"  # comma-separated phone lists under unexpected keys
-    return value
 
 
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
-    coordinator: MykiCoordinator = hass.data["myki"][entry.entry_id]
-    return {
-        "entry": {
+    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
+    return async_redact_data(
+        {
             "email": entry.data.get("email"),
-            "scan_interval": entry.options.get("scan_interval"),
+            "scan_interval": entry.options.get(CONF_SCAN_INTERVAL),
+            "api": BASE_URL,
+            "watches": coordinator.data,
         },
-        "api": BASE_URL,
-        "watches": _redact(coordinator.data),
-    }
+        _TO_REDACT,
+    )
 
 
 async def async_get_device_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry, device: DeviceEntry
 ) -> dict[str, Any]:
-    coordinator: MykiCoordinator = hass.data["myki"][entry.entry_id]
+    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
     watch_id = next(iter(device.identifiers))[1]
-    return _redact(coordinator.data.get(watch_id, {}))
+    return async_redact_data(coordinator.data.get(watch_id, {}), _TO_REDACT)

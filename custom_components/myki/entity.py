@@ -1,7 +1,5 @@
 """Shared MyKi entity base: device info + coordinator link."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -21,13 +19,12 @@ class MykiEntity(CoordinatorEntity[MykiCoordinator]):
         super().__init__(coordinator)
         self.watch_id = watch_id
         data = coordinator.data[watch_id]
-        settings = data["app"].get("settings") or {}
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, watch_id)},
             name=data["watch"].get("nickname") or watch_id,
             manufacturer="Allterco",
             model=get_model(data["app"]),
-            sw_version=str(settings.get("fw") or None),
+            sw_version=(data["app"].get("settings") or {}).get("fw"),
         )
 
     @property
@@ -36,5 +33,6 @@ class MykiEntity(CoordinatorEntity[MykiCoordinator]):
         return self.coordinator.data[self.watch_id]["app"]
 
     @property
-    def nickname(self) -> str:
-        return self.coordinator.data[self.watch_id]["watch"].get("nickname") or self.watch_id
+    def available(self) -> bool:
+        """Unavailable once the tracker disappears from the account."""
+        return super().available and self.watch_id in self.coordinator.data
