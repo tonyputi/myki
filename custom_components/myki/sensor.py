@@ -64,13 +64,13 @@ class MykiZoneSensor(MykiEntity, SensorEntity):
 
     @property
     def options(self) -> list[str]:
-        return [z["name"] for z in get_safe_zones(self.app_data) if z["active"]] + [AWAY]
+        return [z["name"] for z in (get_safe_zones(self.app_data) or [])] + [AWAY]
 
     @property
     def extra_state_attributes(self) -> dict:
         pos = get_position(self.app_data)
         attrs: dict = {}
-        for zone in get_safe_zones(self.app_data):
+        for zone in get_safe_zones(self.app_data) or []:
             if pos:
                 attrs[f"distance_to_{zone['name']}"] = round(
                     distance_meters(pos[0], pos[1], zone["lat"], zone["lon"])

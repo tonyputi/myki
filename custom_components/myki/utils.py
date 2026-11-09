@@ -18,49 +18,72 @@ def distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float
 
 def get_position(app_data: dict[str, Any]) -> tuple[float, float, int, str] | None:
     """Return (lat, lon, accuracy_m, position_type) or None if unavailable."""
-    pos = (app_data.get("current") or {}).get("position") or {}
-    try:
-        return (
-            float(pos["latitude"]),
-            float(pos["longitude"]),
-            int(pos.get("accuracy") or 0),
-            str(pos.get("type") or ""),
-        )
-    except (KeyError, TypeError, ValueError):
+    current = app_data.get("current")
+    if not isinstance(current, dict):
         return None
+    pos = current.get("position")
+    if not isinstance(pos, dict):
+        return None
+    try:
+        lat = float(pos["latitude"])
+        lon = float(pos["longitude"])
+        accuracy = int(pos.get("accuracy") or 0)
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180) or accuracy < 0:
+        return None
+    return lat, lon, accuracy, str(pos.get("type") or "")
 
 
-def get_safe_zones(app_data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Parsed safe zones ({name, lat, lon, radius_km, active}), key order."""
+def get_safe_zones(app_data: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Return active safe zones, or None if their configuration is invalid."""
+    settings = app_data.get("settings")
+    if not isinstance(settings, dict):
+        return None
     zones = []
-    for key in sorted(k for k in (app_data.get("settings") or {}) if k.startswith("safe_zone")):
-        raw = app_data["settings"][key]
+    for key in sorted(k for k in settings if k.startswith("safe_zone_")):
+        raw = settings[key]
+        if raw is None or raw == "":
+            continue
         try:
             zone = json.loads(raw)
-        except (TypeError, ValueError):
-            continue
-        if not isinstance(zone, dict):
-            continue
+            if zone is None:
+                continue
+            if not isinstance(zone, dict):
+                return None
+            active = zone["active"]
+            if active in (0, "0"):
+                continue
+            if active not in (1, "1"):
+                return None
+            lat = float(zone["lat"])
+            lon = float(zone["lon"])
+            radius = float(zone["radius"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            return None
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180 and math.isfinite(radius) and radius > 0):
+            return None
         zones.append(
             {
                 "key": key,
-                "name": str(zone.get("name") or key).strip(),
-                "lat": float(zone["lat"]),
-                "lon": float(zone["lon"]),
+                "name": str(zone.get("name") or key).strip() or key,
+                "lat": lat,
+                "lon": lon,
                 # the cloud API stores the radius in kilometers
-                "radius_km": float(zone["radius"]),
-                "active": bool(int(zone.get("active", 0))),
+                "radius_km": radius,
+                "active": True,
             }
         )
     return zones
 
 
 def get_zone(app_data: dict[str, Any]) -> str | None:
-    """Name of the active safe zone containing the tracker, else AWAY."""
+    """Return the zone or AWAY; invalid position/configuration remains unknown."""
     here = get_position(app_data)
-    if here is None:
+    zones = get_safe_zones(app_data)
+    if here is None or zones is None:
         return None
-    for zone in get_safe_zones(app_data):
+    for zone in zones:
         if zone["active"] and distance_meters(here[0], here[1], zone["lat"], zone["lon"]) <= zone["radius_km"] * 1000:
             return zone["name"]
     return AWAY
