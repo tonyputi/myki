@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.myki.const import DOMAIN
 from custom_components.myki.diagnostics import (

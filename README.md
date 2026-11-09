@@ -82,9 +82,11 @@ More in [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
 ## Installation
 
+Requires **Home Assistant 2026.11.0 or newer**. Earlier releases are not supported.
+
 **Marketplace (Home Assistant 2026.11+):** Settings → Marketplace → add `https://github.com/tonyputi/myki` as a custom repository (requires connecting your GitHub account once), then install **MyKi** — setup starts immediately, no restart needed.
 
-**Older versions (HACS):** HACS → ⋮ Custom repositories → `https://github.com/tonyputi/myki` (category *Integration*), install **MyKi**, restart.
+**HACS:** HACS → ⋮ Custom repositories → `https://github.com/tonyputi/myki` (category *Integration*), install **MyKi**, restart.
 
 **Manual:** copy `custom_components/myki/` into your Home Assistant `config/custom_components/myki/`, restart.
 
@@ -98,11 +100,16 @@ Reverse-engineered REST API of the MyKi Spot cloud (`spot.myki.pet`, HTTP Basic 
 
 ## Development
 
+Tests target Home Assistant 2026.11.0 on Python 3.14.2 or newer in the 3.14 series. Use [uv](https://docs.astral.sh/uv/) and an environment outside the checkout:
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements_test.txt
+uv venv --python 3.14 /tmp/myki-tests
+source /tmp/myki-tests/bin/activate
+uv pip install -r requirements_test.txt
 pytest && ruff check .
 ```
+
+The official `pytest-homeassistant==2026.11.0` package pins the tested HA version. CI uses the same requirements; no compatibility code for older HA versions is maintained.
 
 ## Supported devices
 
