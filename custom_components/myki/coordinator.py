@@ -36,6 +36,8 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
             app = await self.client.app_data(watch_id)
             try:
                 events = await self.client.events(watch_id)
+            except MykiAuthError:
+                raise
             except MykiError as err:  # events are non-critical
                 _LOGGER.debug("Could not fetch events for %s: %s", watch_id, err)
                 events = []
