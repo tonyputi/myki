@@ -19,7 +19,7 @@ TRACKER_ID = "private-tracker-id"
 PRIVATE = "private-sentinel"
 
 
-def make_entry(hass: HomeAssistant) -> tuple[MockConfigEntry, dict]:
+def make_entry() -> tuple[MockConfigEntry, dict]:
     """Include private values in strings, nested payloads and dictionary keys."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -53,9 +53,7 @@ def make_entry(hass: HomeAssistant) -> tuple[MockConfigEntry, dict]:
         },
         "events": [{"event_name": PRIVATE, "timestamp": "1234567890"}],
     }
-    hass.data[DOMAIN] = {
-        entry.entry_id: SimpleNamespace(data={TRACKER_ID: tracker}, last_update_success=True)
-    }
+    entry.runtime_data = SimpleNamespace(data={TRACKER_ID: tracker}, last_update_success=True)
     return entry, tracker
 
 
@@ -66,7 +64,7 @@ def assert_private_data_absent(result: dict) -> None:
 
 
 async def test_entry_diagnostics_are_private(hass: HomeAssistant) -> None:
-    entry, tracker = make_entry(hass)
+    entry, tracker = make_entry()
     original = deepcopy(tracker)
 
     result = await async_get_config_entry_diagnostics(hass, entry)
@@ -82,7 +80,7 @@ async def test_entry_diagnostics_are_private(hass: HomeAssistant) -> None:
 
 
 async def test_device_diagnostics_are_private(hass: HomeAssistant) -> None:
-    entry, tracker = make_entry(hass)
+    entry, tracker = make_entry()
     original = deepcopy(tracker)
     device = MagicMock(spec=DeviceEntry)
     device.identifiers = {("another_integration", "unrelated-id"), (DOMAIN, TRACKER_ID)}
@@ -98,7 +96,7 @@ async def test_device_diagnostics_are_private(hass: HomeAssistant) -> None:
 
 
 async def test_unrelated_device_has_no_diagnostics(hass: HomeAssistant) -> None:
-    entry, _ = make_entry(hass)
+    entry, _ = make_entry()
     device = MagicMock(spec=DeviceEntry)
     device.identifiers = {("another_integration", TRACKER_ID)}
 
@@ -106,7 +104,7 @@ async def test_unrelated_device_has_no_diagnostics(hass: HomeAssistant) -> None:
 
 
 async def test_removed_device_has_no_diagnostics(hass: HomeAssistant) -> None:
-    entry, _ = make_entry(hass)
+    entry, _ = make_entry()
     device = MagicMock(spec=DeviceEntry)
     device.identifiers = {(DOMAIN, "removed-id")}
 

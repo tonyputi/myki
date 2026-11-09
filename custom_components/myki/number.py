@@ -1,15 +1,13 @@
 """Config entities: ring and call volume sliders."""
 
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import MykiError
-from .const import DOMAIN
-from .coordinator import MykiCoordinator
+from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
 
 
@@ -22,10 +20,10 @@ def _volume(app_data: dict, key: str) -> int | None:
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: MykiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities(
         entity
         for wid in coordinator.data

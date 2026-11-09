@@ -5,14 +5,12 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
-from .coordinator import MykiCoordinator
+from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
 from .utils import (
     AWAY,
@@ -27,10 +25,10 @@ from .utils import (
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: MykiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities(
         entity
         for wid in coordinator.data

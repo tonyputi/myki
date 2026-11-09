@@ -3,15 +3,14 @@
 import logging
 
 from homeassistant.components.device_tracker import SourceType, TrackerEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_get_current_platform
 import voluptuous as vol
 
 from .api import MykiError
-from .const import ATTR_PHONE, DOMAIN, SERVICE_FIND, SERVICE_MAKE_CALL
-from .coordinator import MykiCoordinator
+from .const import ATTR_PHONE, SERVICE_FIND, SERVICE_MAKE_CALL
+from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
 from .utils import authorized_phones, get_position, get_zone
 
@@ -22,10 +21,10 @@ MAKE_CALL_SCHEMA = {vol.Required(ATTR_PHONE): str}
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: MykiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     platform = async_get_current_platform()
     platform.async_register_entity_service(SERVICE_FIND, None, "async_find")
     platform.async_register_entity_service(SERVICE_MAKE_CALL, MAKE_CALL_SCHEMA, "async_make_call")

@@ -4,8 +4,10 @@ These would have caught the platform setup signature bug found in the field.
 """
 
 from copy import deepcopy
+from datetime import timedelta
 import json
 import time
+from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -14,7 +16,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from pytest_homeassistant.common import MockConfigEntry
 from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 
-from custom_components.myki.api import BASE_URL
+from custom_components.myki.api import BASE_URL, MykiError
 from custom_components.myki.const import DOMAIN
 
 WATCH_ID = "3747004238"
@@ -78,6 +80,8 @@ async def _setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> Mo
 async def test_setup_creates_entities(hass: HomeAssistant, aioclient_mock) -> None:
     entry = await _setup(hass, aioclient_mock)
     assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data.config_entry is entry
+    assert DOMAIN not in hass.data
 
     tracker = hass.states.get(f"device_tracker.{NICK.lower()}")
     assert tracker is not None
@@ -107,8 +111,40 @@ async def test_unload(hass: HomeAssistant, aioclient_mock) -> None:
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.NOT_LOADED
+    assert not hasattr(entry, "runtime_data")
 
 
+async def test_failed_unload_keeps_runtime_data(hass: HomeAssistant, aioclient_mock) -> None:
+    entry = await _setup(hass, aioclient_mock)
+    coordinator = entry.runtime_data
+    with patch("homeassistant.config_entries.ConfigEntries.async_unload_platforms", return_value=False):
+        assert not await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.FAILED_UNLOAD
+    assert entry.runtime_data is coordinator
+    assert coordinator.data[WATCH_ID]["watch"]["nickname"] == NICK
+
+
+async def test_options_reload_replaces_coordinator(hass: HomeAssistant, aioclient_mock) -> None:
+    entry = await _setup(hass, aioclient_mock)
+    previous = entry.runtime_data
+    hass.config_entries.async_update_entry(entry, options={"scan_interval": 120})
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data is not previous
+    assert entry.runtime_data.config_entry is entry
+    assert entry.runtime_data.update_interval == timedelta(seconds=120)
+    assert hass.states.get(f"sensor.{NICK.lower()}_battery").state == "85"
+
+
+async def test_failed_first_refresh_has_no_runtime_data(hass: HomeAssistant, aioclient_mock) -> None:
+    with patch("custom_components.myki.api.MykiClient.watches", side_effect=MykiError("offline")):
+        entry = await _setup(hass, aioclient_mock)
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert not hasattr(entry, "runtime_data")
 
 
 async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None:
@@ -159,7 +195,7 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
 async def test_rotated_events_produce_individual_state_changes(hass: HomeAssistant, aioclient_mock) -> None:
     """Two new SOS records must each reach HA automations, even after rotation."""
     entry = await _setup(hass, aioclient_mock)
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     entity_id = f"event.{NICK.lower()}_events"
     changes = []
 
@@ -253,7 +289,7 @@ async def test_unique_ids_are_stable(hass: HomeAssistant, aioclient_mock) -> Non
 async def test_invalid_safe_zone_is_unknown_and_recovers(hass: HomeAssistant, aioclient_mock) -> None:
     """A malformed active zone must not generate a Home -> away transition."""
     entry = await _setup(hass, aioclient_mock)
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     original = deepcopy(coordinator.data)
     entity_id = f"sensor.{NICK.lower()}_zone"
     assert hass.states.get(entity_id).state == "Home"

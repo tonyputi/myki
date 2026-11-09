@@ -1,23 +1,22 @@
 """Buttons on the device page: find (ring) and call me."""
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import MykiError
-from .const import CONF_CALL_ME_NUMBER, DOMAIN
-from .coordinator import MykiCoordinator
+from .const import CONF_CALL_ME_NUMBER
+from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: MykiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities(
         entity
         for wid in coordinator.data
