@@ -110,7 +110,7 @@ pytest && ruff check .
 | MyKi Watch 4 | Watch | [mykifamily.com/myki-watch](https://mykifamily.com/myki-watch) | 🔀 same platform — untested |
 | MyKi Watch 4 Lite | Watch | [mykifamily.com/myki-watch-4-lite](https://mykifamily.com/myki-watch-4-lite) | 🔀 same platform — untested |
 
-The integration identifies the model from the device firmware. Using a device not yet mapped? Open an issue and attach the `fw` string from the device diagnostics.
+The integration identifies known models from the device firmware. Diagnostics contain only anonymous model, battery, signal, step and online status, plus account polling status; raw vendor payloads, identifiers, contacts and locations are not exported. For model-identification issues, report the model and firmware version shown on the device page, without sharing personal data.
 
 ## Trademark
 
