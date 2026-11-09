@@ -26,7 +26,17 @@ def _epoch(timestamp: str) -> int | None:
 
 def parse_events(raw_events: list[dict[str, Any]]) -> list[tuple[str, str]]:
     """Return [(event_name, timestamp)] oldest-first (best effort by timestamp)."""
-    events = [(str(e.get("event_name")), str(e.get("timestamp"))) for e in raw_events]
+    events = []
+    for event in raw_events:
+        if not isinstance(event, dict):
+            continue
+        name = event.get("event_name")
+        timestamp = event.get("timestamp")
+        if not isinstance(name, str) or not name.strip() or type(timestamp) not in (str, int):
+            continue
+        if not str(timestamp).strip():
+            continue
+        events.append((name, str(timestamp)))
     try:
         return sorted(events, key=lambda ev: int(ev[1]))
     except (ValueError, TypeError):
@@ -48,7 +58,8 @@ class MykiEventEntity(MykiEntity, EventEntity):
     @property
     def event_types(self) -> list[str]:
         """Known names plus every name currently in the log (open set)."""
-        return sorted({name for name, _ in parse_events(self.coordinator.data[self.watch_id]["events"])})
+        events = self.coordinator.data.get(self.watch_id, {}).get("events", [])
+        return sorted({name for name, _ in parse_events(events)})
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -62,6 +73,9 @@ class MykiEventEntity(MykiEntity, EventEntity):
         self._initialized = True
 
     def _handle_coordinator_update(self) -> None:
+        if self.watch_id not in self.coordinator.data:
+            self.async_write_ha_state()
+            return
         events = parse_events(self.coordinator.data[self.watch_id]["events"])
         if not self._initialized:
             self._swallow_backlog()
@@ -79,9 +93,16 @@ class MykiEventEntity(MykiEntity, EventEntity):
                 if _epoch(ev[1]) is None or _epoch(ev[1]) > self._started_epoch
             ]
         else:
-            # the log window rotated past our marker: never replay old alarms
-            fresh = []
-            _LOGGER.debug("Event log rotated past the last seen marker; skipping backlog")
+            # shortcut: tied/non-numeric timestamps cannot be ordered after rotation;
+            # require a verified vendor event ID/format before handling those cases.
+            last_epoch = _epoch(self._last_seen[1])
+            fresh = [
+                ev for ev in events
+                if last_epoch is not None
+                and (epoch := _epoch(ev[1])) is not None
+                and epoch > last_epoch
+            ]
+            _LOGGER.debug("Event log rotated past the last seen marker")
         for name, timestamp in fresh:
             try:
                 triggered_at = dt_util.utc_from_timestamp(int(timestamp))
@@ -90,7 +111,8 @@ class MykiEventEntity(MykiEntity, EventEntity):
             self._trigger_event(name, {"timestamp": timestamp, "triggered_at": triggered_at})
             # write per event: every event produces its own state transition
             self.async_write_ha_state()
-        self._last_seen = events[-1]
+        if fresh:
+            self._last_seen = fresh[-1]
 
 
 async def async_setup_entry(

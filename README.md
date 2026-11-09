@@ -52,6 +52,8 @@ The trackers work with HA people: **Settings → People → *your kid* → add t
 
 ## Automation ideas
 
+Event entities poll the vendor history and do not replay existing alarms when the integration loads. After history rotation, only events with numeric timestamps strictly newer than the last seen event are emitted; tied or unrecognized timestamps may be skipped. This is not a guaranteed or real-time safety notification system.
+
 ```yaml
 # Not at school during school hours
 alias: Sofia not at school
