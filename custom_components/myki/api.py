@@ -22,11 +22,13 @@ class MykiClient:
 
     def __init__(self, session: aiohttp.ClientSession, email: str, password: str) -> None:
         self._session = session
-        self._auth = aiohttp.BasicAuth(email, password)
+        self._headers = {
+            "Authorization": aiohttp.encode_basic_auth(email, password, encoding="latin1")
+        }
 
     async def _get(self, path: str) -> dict[str, Any]:
         try:
-            async with self._session.get(BASE_URL + path, auth=self._auth, timeout=_TIMEOUT) as resp:
+            async with self._session.get(BASE_URL + path, headers=self._headers, timeout=_TIMEOUT) as resp:
                 if resp.status == 401:
                     raise MykiAuthError("unauthorized")
                 try:

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 from homeassistant.core import HomeAssistant
 import pytest
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.myki.api import MykiClient
 from custom_components.myki.coordinator import MykiCoordinator
@@ -18,7 +19,9 @@ def event(timestamp: int, name: str = "sos_alarm") -> dict:
 
 @pytest.fixture
 async def event_entity(hass: HomeAssistant):
-    coordinator = MykiCoordinator(hass, AsyncMock(spec=MykiClient), 60)
+    coordinator = MykiCoordinator(
+        hass, AsyncMock(spec=MykiClient), 60, config_entry=MockConfigEntry(domain="myki")
+    )
     coordinator.data = {
         WATCH_ID: {"watch": {"nickname": "Test tracker"}, "app": {}, "events": [event(90)]}
     }

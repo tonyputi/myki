@@ -4,6 +4,7 @@ from datetime import timedelta
 import logging
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -13,15 +14,24 @@ from .api import MykiAuthError, MykiClient, MykiError
 _LOGGER = logging.getLogger(__name__)
 
 type MykiData = dict[str, dict[str, Any]]
+type MykiConfigEntry = ConfigEntry[MykiCoordinator]
 
 
 class MykiCoordinator(DataUpdateCoordinator[MykiData]):
     """data = {watch_id: {"watch": {id, nickname}, "app": {current, settings, commands}, "events": [...]}}."""
 
-    def __init__(self, hass: HomeAssistant, client: MykiClient, scan_interval: int) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        client: MykiClient,
+        scan_interval: int,
+        *,
+        config_entry: MykiConfigEntry,
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name="MyKi",
             update_interval=timedelta(seconds=scan_interval),
         )

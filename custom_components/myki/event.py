@@ -5,13 +5,11 @@ import time
 from typing import Any
 
 from homeassistant.components.event import EventEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
-from .coordinator import MykiCoordinator
+from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -117,8 +115,8 @@ class MykiEventEntity(MykiEntity, EventEntity):
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: MykiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: MykiCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities(MykiEventEntity(coordinator, wid) for wid in coordinator.data)
