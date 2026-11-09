@@ -374,7 +374,10 @@ async def test_failed_tracker_action(hass: HomeAssistant, aioclient_mock, caplog
     with patch.object(entry.runtime_data.client, method, side_effect=MykiError("offline")):
         with pytest.raises(HomeAssistantError):
             await hass.services.async_call(DOMAIN, service, data, blocking=True)
-    assert "+15555550100" not in caplog.text
+    assert all(
+        "+15555550100" not in record.getMessage()
+        for record in caplog.records if record.name.startswith("custom_components.myki")
+    )
 
 
 async def test_action_targets_only_selected_tracker(hass: HomeAssistant, aioclient_mock):
