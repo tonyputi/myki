@@ -28,6 +28,8 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 | `button.<kid>_find` / `button.<kid>_call_me` | Ring the tracker / call you |
 | `number.<kid>_ring_volume` / `number.<kid>_call_volume` | Volume sliders (config) |
 
+The zone sensor is calculated from the reported position and active MyKi safe zones. Invalid coordinates or malformed zone configuration produce `unknown`, not `away`; disabled zones are ignored. Automations should ignore `unknown`/`unavailable` transitions and allow for tracker reporting and cloud polling delays.
+
 **Services** (Developer Tools → Actions):
 
 ```yaml

@@ -135,4 +135,4 @@ def test_gsm_signal():
 
 def test_safe_zone_invalid_values():
     p = payload(35.9, 14.4, extra_settings={"safe_zone_3": "null", "safe_zone_4": "[]", "safe_zone_5": "{bad"})
-    assert utils_get_zone(p) in ("Home", AWAY)  # must not raise
+    assert utils_get_zone(p) is None  # malformed zones must not imply a departure

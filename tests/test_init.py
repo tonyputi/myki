@@ -3,6 +3,7 @@
 These would have caught the platform setup signature bug found in the field.
 """
 
+from copy import deepcopy
 import json
 import time
 
@@ -214,3 +215,29 @@ async def test_unique_ids_are_stable(hass: HomeAssistant, aioclient_mock) -> Non
     assert f"{WATCH_ID}_gsm_signal" in uids
     assert f"{WATCH_ID}_rtt_seconds_left" in uids
     assert f"{WATCH_ID}_gps_satellites" not in uids  # satellites keep the payload key
+
+
+async def test_invalid_safe_zone_is_unknown_and_recovers(hass: HomeAssistant, aioclient_mock) -> None:
+    """A malformed active zone must not generate a Home -> away transition."""
+    entry = await _setup(hass, aioclient_mock)
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    original = deepcopy(coordinator.data)
+    entity_id = f"sensor.{NICK.lower()}_zone"
+    assert hass.states.get(entity_id).state == "Home"
+
+    data = deepcopy(original)
+    data[WATCH_ID]["app"]["settings"]["safe_zone_1"] = json.dumps({"active": 1})
+    coordinator.async_set_updated_data(data)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(entity_id)
+    assert state.state == "unknown"
+    assert state.attributes["options"] == ["away"]
+    assert not any(key.startswith("distance_to_") for key in state.attributes)
+    tracker = hass.states.get(f"device_tracker.{NICK.lower()}")
+    assert tracker.attributes["latitude"] == 35.92417
+    assert tracker.attributes["zone"] is None
+
+    coordinator.async_set_updated_data(original)
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id).state == "Home"
