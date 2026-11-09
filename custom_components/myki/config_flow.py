@@ -8,7 +8,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
 
@@ -30,8 +30,8 @@ STEP_USER_SCHEMA = vol.Schema(
 REAUTH_SCHEMA = vol.Schema({vol.Required(CONF_PASSWORD): str})
 
 
-async def _watches_ok(hass: Any, email: str, password: str) -> bool:
-    """Return True if credentials work and the account has at least one watch."""
+async def _async_has_trackers(hass: HomeAssistant, email: str, password: str) -> bool:
+    """Return whether the credentials work and the account has a tracker."""
     client = MykiClient(async_get_clientsession(hass), email, password)
     return bool(await client.watches())
 
@@ -50,7 +50,7 @@ class MykiConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input:
             try:
-                ok = await _watches_ok(self.hass, user_input[CONF_EMAIL], user_input[CONF_PASSWORD])
+                ok = await _async_has_trackers(self.hass, user_input[CONF_EMAIL], user_input[CONF_PASSWORD])
             except MykiAuthError:
                 errors["base"] = "invalid_auth"
             except MykiError:
@@ -73,14 +73,17 @@ class MykiConfigFlow(ConfigFlow, domain=DOMAIN):
         entry = self._get_reauth_entry()
         if user_input:
             try:
-                ok = await _watches_ok(self.hass, entry.data[CONF_EMAIL], user_input[CONF_PASSWORD])
+                ok = await _async_has_trackers(self.hass, entry.data[CONF_EMAIL], user_input[CONF_PASSWORD])
+            except MykiAuthError:
+                errors["base"] = "invalid_auth"
             except MykiError:
-                ok = False
-            if ok:
-                return self.async_update_reload_and_abort(
-                    entry, data_updates={CONF_PASSWORD: user_input[CONF_PASSWORD]}
-                )
-            errors["base"] = "invalid_auth"
+                errors["base"] = "cannot_connect"
+            else:
+                if ok:
+                    return self.async_update_reload_and_abort(
+                        entry, data_updates={CONF_PASSWORD: user_input[CONF_PASSWORD]}
+                    )
+                errors["base"] = "no_watches"
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=REAUTH_SCHEMA,

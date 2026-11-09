@@ -61,9 +61,9 @@ class MykiFreshDataSensor(MykiEntity, BinarySensorEntity):
     def is_on(self) -> bool | None:
         try:
             last = int((self.app_data.get("settings") or {}).get("last_data_package"))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return None
-        return (time.time() - last) <= self.FRESH_MAX_AGE_S
+        return 0 <= (time.time() - last) <= self.FRESH_MAX_AGE_S
 
     @property
     def extra_state_attributes(self) -> dict:

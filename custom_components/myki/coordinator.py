@@ -40,8 +40,6 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
     async def _async_fetch(self) -> MykiData:
         data: MykiData = {}
         for w in await self.client.watches():
-            if not w.get("id"):
-                continue
             watch_id = w["id"]
             app = await self.client.app_data(watch_id)
             try:
@@ -49,7 +47,7 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
             except MykiAuthError:
                 raise
             except MykiError as err:  # events are non-critical
-                _LOGGER.debug("Could not fetch events for %s: %s", watch_id, err)
+                _LOGGER.debug("Could not fetch event history: %s", err)
                 events = []
             data[watch_id] = {"watch": w, "app": app, "events": events}
         return data

@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 from typing import Any
 
 AWAY = "away"
@@ -71,7 +72,6 @@ def get_safe_zones(app_data: dict[str, Any]) -> list[dict[str, Any]] | None:
                 "lon": lon,
                 # the cloud API stores the radius in kilometers
                 "radius_km": radius,
-                "active": True,
             }
         )
     return zones
@@ -84,7 +84,7 @@ def get_zone(app_data: dict[str, Any]) -> str | None:
     if here is None or zones is None:
         return None
     for zone in zones:
-        if zone["active"] and distance_meters(here[0], here[1], zone["lat"], zone["lon"]) <= zone["radius_km"] * 1000:
+        if distance_meters(here[0], here[1], zone["lat"], zone["lon"]) <= zone["radius_km"] * 1000:
             return zone["name"]
     return AWAY
 
@@ -93,7 +93,7 @@ def get_battery(app_data: dict[str, Any]) -> int | None:
     """Battery percentage."""
     try:
         return int((app_data.get("current") or {}).get("battery"))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -109,7 +109,7 @@ def get_steps_today(app_data: dict[str, Any]) -> int | None:
     """Step count for today."""
     try:
         return int(((app_data.get("current") or {}).get("steps") or {}).get("todaySteps"))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -117,35 +117,29 @@ def authorized_phones(app_data: dict[str, Any]) -> set[str]:
     """All phone numbers the watch is allowed to interact with (SOS + whitelist)."""
     commands = app_data.get("commands") or {}
     phones: set[str] = set()
-    for value in commands.values():
-        if isinstance(value, str):
-            phones.update(p.strip() for p in value.split(",") if p.strip().isdigit())
+    for key, value in commands.items():
+        if re.fullmatch(r"(?:sos_phone|whitelist)_\d+", key) and isinstance(value, str):
+            for part in value.split(","):
+                phone = part.strip()
+                if re.fullmatch(r"\+?[0-9]+", phone):
+                    phones.add(phone)
     return phones
 
 
 # Known firmware-prefix -> product model map. Verified live unless noted;
-# extend via issues with the `fw` string from diagnostics.
+# extend only with verified firmware from the device information.
 FW_MODELS = {
     "G36W": "MyKi Spot",
 }
 
-MODE_LABELS = {
-    "sos": "MyKi kids tracker",
-    "pet": "MyKi pet tracker",
-    "asset": "MyKi asset tracker",
-}
-
 
 def get_model(app_data: dict[str, Any]) -> str:
-    """Product model from the firmware prefix, falling back to the device mode."""
+    """Identify verified firmware; a user-selectable mode is not a model."""
     settings = app_data.get("settings") or {}
     fw = str(settings.get("fw") or "")
     for prefix, model in FW_MODELS.items():
         if fw.startswith(prefix):
             return model
-    mode = str(settings.get("mode") or "")
-    if label := MODE_LABELS.get(mode):
-        return label
     return "MyKi tracker"
 
 
@@ -153,5 +147,5 @@ def get_gsm_signal(app_data: dict[str, Any]) -> int | None:
     """GSM signal strength in percent."""
     try:
         return int((app_data.get("current") or {}).get("gsmSignalStrength"))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
