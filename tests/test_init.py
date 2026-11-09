@@ -8,7 +8,8 @@ import time
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_track_state_change_event
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
@@ -152,6 +153,38 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("callvolset" in u and "volume=5" in u for u in urls)
+
+
+async def test_rotated_events_produce_individual_state_changes(hass: HomeAssistant, aioclient_mock) -> None:
+    """Two new SOS records must each reach HA automations, even after rotation."""
+    entry = await _setup(hass, aioclient_mock)
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    entity_id = f"event.{NICK.lower()}_events"
+    changes = []
+
+    @callback
+    def record_change(event):
+        changes.append(event.data["new_state"])
+
+    unsubscribe = async_track_state_change_event(hass, [entity_id], record_change)
+    try:
+        data = {WATCH_ID: {
+            **coordinator.data[WATCH_ID],
+            "events": [
+                {"event_name": "sos_alarm", "timestamp": "1794010001"},
+                {"event_name": "sos_alarm", "timestamp": "1794010002"},
+            ],
+        }}
+        coordinator.async_set_updated_data(data)
+        await hass.async_block_till_done()
+        assert [state.attributes["timestamp"] for state in changes] == ["1794010001", "1794010002"]
+        assert all(state.attributes["event_type"] == "sos_alarm" for state in changes)
+
+        coordinator.async_set_updated_data(data)
+        await hass.async_block_till_done()
+        assert len(changes) == 2
+    finally:
+        unsubscribe()
 
 
 async def test_p3b_entities(hass: HomeAssistant, aioclient_mock) -> None:
