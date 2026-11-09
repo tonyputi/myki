@@ -18,8 +18,8 @@ make_call:
   fields:
     phone:
       name: Phone number
-      description: The number the tracker should call (including country prefix, e.g. +35679060465).
+      description: The number the tracker should call, including the country prefix.
       required: true
-      example: "+35679060465"
+      example: "+15555550100"
       selector:
         text:

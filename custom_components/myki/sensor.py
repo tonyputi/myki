@@ -123,7 +123,7 @@ class _MykiCurrentIntSensor(MykiEntity, SensorEntity):
     def native_value(self) -> int | None:
         try:
             return int((self.app_data.get("current") or {}).get(self._key))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return None
 
 

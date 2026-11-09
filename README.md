@@ -15,13 +15,13 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 
 | Entity | Description |
 |---|---|
-| `device_tracker.<kid>` | Live GPS position (accuracy + battery) |
+| `device_tracker.<kid>` | Last reported location and accuracy (GPS, WiFi or cellular) |
 | `sensor.<kid>_zone` | The tracker's own safe zones: **"Home" / "School" / … / "Away"** |
 | `sensor.<kid>_battery` | Battery % |
 | `binary_sensor.<kid>_online` | Tracker online/offline |
 | `sensor.<kid>_steps_today` | Today's step count |
 | `event.<kid>_events` | SOS alarm / low battery / safe zone events (automation-ready) |
-| `button.<kid>_live_tracking` | 10-minute live tracking window |
+| `button.<kid>_live_tracking` | Start live tracking using the app's default duration parameter |
 | `sensor.<kid>_live_tracking_seconds_left` | Live tracking countdown |
 | `binary_sensor.<kid>_fresh_data` | Device has reported within 30 min |
 | `sensor.<kid>_gsm_signal` | GSM signal % (diagnostic) |
@@ -36,42 +36,41 @@ The zone sensor is calculated from the reported position and active MyKi safe zo
 # Make the tracker ring
 action: myki.find
 target:
-  entity_id: device_tracker.jacopo
+  entity_id: device_tracker.child
+```
 
+```yaml
 # Make the tracker call a number (use one from SOS/whitelist)
 action: myki.make_call
 target:
-  entity_id: device_tracker.sofia
+  entity_id: device_tracker.child
 data:
-  phone: "+35679060465"
+  phone: "+15555550100"
 ```
 
 ## Attach a tracker to a person
 
-The trackers work with HA people: **Settings → People → *your kid* → add the MyKi tracker**, next to the tablet's tracker. Home Assistant will use whichever source reported last — school hours covered by the tracker, home time by the tablet.
+The trackers work with HA people: **Settings → People → *your kid* → add the MyKi tracker**, next to the tablet's tracker. Home Assistant combines the sources using its [Person presence rules](https://www.home-assistant.io/integrations/person/); it does not always select the most recent report.
 
 ## Automation ideas
 
 Event entities poll the vendor history and do not replay existing alarms when the integration loads. After history rotation, only events with numeric timestamps strictly newer than the last seen event are emitted; tied or unrecognized timestamps may be skipped. This is not a guaranteed or real-time safety notification system.
 
 ```yaml
-# Not at school during school hours
-alias: Sofia not at school
+# Replace the entity, zone name and notification action with your own.
+alias: School presence reminder
 triggers:
   - trigger: time
     at: "08:45:00"
 conditions:
   - condition: time
-    after: "08:45:00"
-    before: "13:00:00"
     weekday: [mon, tue, wed, thu, fri]
-  - condition: state
-    entity_id: sensor.sofia_zone
-    state_not: School
+  - condition: template
+    value_template: "{{ states('sensor.child_zone') not in ['School', 'unknown', 'unavailable'] }}"
 actions:
-  - action: notify.mobile_app_papa
+  - action: notify.mobile_app_your_phone
     data:
-      message: "Sofia non risulta a scuola"
+      message: "The tracker is not reporting School."
 ```
 
 - Kid left `Home` on a school morning → "on the bus" notification
@@ -83,8 +82,6 @@ More in [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 ## Installation
 
 Requires **Home Assistant 2026.11.0 or newer**. Earlier releases are not supported.
-
-**Marketplace (Home Assistant 2026.11+):** Settings → Marketplace → add `https://github.com/tonyputi/myki` as a custom repository (requires connecting your GitHub account once), then install **MyKi** — setup starts immediately, no restart needed.
 
 **HACS:** HACS → ⋮ Custom repositories → `https://github.com/tonyputi/myki` (category *Integration*), install **MyKi**, restart.
 
@@ -109,17 +106,15 @@ uv pip install -r requirements_test.txt
 pytest && ruff check .
 ```
 
-The official `pytest-homeassistant==2026.11.0` package pins the tested HA version. CI uses the same requirements; no compatibility code for older HA versions is maintained.
+The official `pytest-homeassistant==2026.11.0` package pins the tested HA version. CI uses the same requirements; no compatibility code for older HA versions is maintained. CI also runs the official hassfest validator. These checks validate this custom integration, not acceptance into Home Assistant Core. Vendor event timestamp semantics, exact live-tracking duration and full hardware behavior still require live verification; no tracker commands are sent by the tests.
 
 ## Supported devices
 
 | Product | Type | Link | Status |
 |---|---|---|---|
 | **MyKi Spot** | GPS tracker | [mykifamily.com/myki-spot](https://mykifamily.com/myki-spot) | ✅ supported |
-| MyKi Auto | GPS tracker | [mykifamily.com/myki-auto](https://mykifamily.com/myki-auto) | 🔀 same platform — untested |
-| MyKi Touch | Watch | [mykifamily.com/myki-touch](https://mykifamily.com/myki-touch) | 🔀 same platform — untested |
-| MyKi Watch 4 | Watch | [mykifamily.com/myki-watch](https://mykifamily.com/myki-watch) | 🔀 same platform — untested |
-| MyKi Watch 4 Lite | Watch | [mykifamily.com/myki-watch-4-lite](https://mykifamily.com/myki-watch-4-lite) | 🔀 same platform — untested |
+
+Other MyKi products and backends have not been verified and are not supported.
 
 The integration identifies known models from the device firmware. Diagnostics contain only anonymous model, battery, signal, step and online status, plus account polling status; raw vendor payloads, identifiers, contacts and locations are not exported. For model-identification issues, report the model and firmware version shown on the device page, without sharing personal data.
 

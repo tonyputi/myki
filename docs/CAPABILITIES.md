@@ -1,7 +1,7 @@
 # MyKi Spot — Capabilities map: Android app vs device/API vs Home Assistant
 
-Sources: decompiled `com.allterco.mykispot` v2.6.19 (jadx, local `myki-re/`), live API test 2025-11-07.
-This document is repo-ready (no secrets, no personal data).
+Sources: decompiled `com.allterco.mykispot` v2.6.19 and selected live API responses. The APK/decompiled artifacts are not shipped in this repository.
+App code paths and stored cloud fields do not prove that every feature works on MyKi Spot hardware. Remaining app-parity verification is tracked in #29; this is not a support guarantee.
 
 ## 1. What the Android app can do
 
@@ -57,7 +57,7 @@ All `GET /api/watch/app-data?id=…` — raw telemetry the app mostly ignores:
 | `GET /api/watch/history/events` | event log (`event_name`, `timestamp`) | ✅ |
 | `GET /api/watch/history/steps` | step history | ✅ |
 | `GET /api/watch/rtt?duration=` | real-time tracking window | ✅ |
-| `GET /api/watch/save-settings?key=safe_zone_N` | **more than 2 safe zones** (verified live: `safe_zone_3` accepted and persisted; the app only shows 2) | ❌ |
+| `GET /api/watch/save-settings?key=safe_zone_N` | Extra key storage: `safe_zone_3` persisted; device enforcement and notifications remain unverified (experimental #31) | ❌ |
 
 Auth: HTTP Basic (email:password) on `https://spot.myki.pet:6020/api/`. No tokens/sessions.
 Related family backend (other Allterco devices, app `com.allterco.mykifamily`): `https://mj1-1.allterco.net:8020/japi` — different API, future work.
@@ -67,25 +67,27 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 | Capability | App | HA equivalent | Parity/better |
 |---|---|---|---|
 | Live position | map, 10 s | `device_tracker` (+ person, zones, map card) | = (60 s poll) |
-| Safe zone state | colored marker | `sensor.<name>` = Home/School/Away + HA zones | **better**: drives anything |
+| Safe zone state | colored marker | Zone sensor computed from the reported position and MyKi zones; no HA-zone synchronization | Automation input |
 | Battery | icon | `sensor.battery` | = (+ automations) |
 | Online | implicit | `binary_sensor.online` | = |
 | Steps | fitness page | `sensor.steps_today` | = (+ history) |
-| SOS / events | event list | `sensor.events` + instant notification automation | **better** |
+| SOS / events | event list | `event.<name>_events`, polled; timestamp/rotation limitations apply | Not guaranteed or instant |
 | Find (ring) | button | `button.find` / service | = |
 | Force call | button | service | = |
-| Position history | per-day view | HA recorder (retention you choose) | **better** |
+| Position history | per-day view | HA recorder stores observed entity updates, not the full vendor track | Different coverage |
 | Time-at-school stats | ❌ | `history_stats` sensor | **new** |
 | Geofencing automations | fixed push only | any automation (calendar-aware) | **new** |
-| Extra telemetry (GSM/sat/WiFi/speed) | ❌ | attributes | **new** |
+| Extra telemetry (GSM/sat/WiFi/speed) | ❌ | GSM, satellite, WiFi and tower sensors; supplemental tracker attributes | Additional telemetry |
 
-## 4. Automations that make HA better than the app (the "figo" list)
+## 4. Automation ideas (not preconfigured or hardware-verified)
 
-1. **School bell**: `sensor.sofia_zone` != "School" during school hours (workday/calendar condition) → notify parents.
+Filter unknown/unavailable transitions and account for reporting and polling delays. Fresh cloud contact is not proof of a fresh position. These examples are not safety guarantees.
+
+1. **School bell**: `sensor.child_zone` != "School" during school hours (workday/calendar condition) → notify parents.
 2. **Arrived home**: kids' zone → Home → turn on hallway lights / stop alarm arming.
 3. **Low battery**: < 20% → evening reminder to charge.
 4. **SOS**: event `sos_alarm` → critical notification + optional camera snapshot / siren.
 5. **Left home in the morning**: zone Home → Away on a school day before 08:30 → "on the bus" notification.
 6. **Weekly report**: time at school / steps per day (history_stats + statistics).
-7. **Actionable notification**: "Sofia hasn't arrived at school — find her watch?" → tap runs `myki.find`.
+7. **Actionable notification**: "The tracker is not reporting School — ring it?" → tap runs `myki.find`.
 8. **Watch offline during school day** → maybe dead battery / forgot it.

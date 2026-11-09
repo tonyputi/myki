@@ -53,7 +53,7 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
         if phone not in authorized_phones(self.app_data):
             # the device refuses numbers outside SOS/whitelist
             _LOGGER.warning(
-                "%s is not in the tracker's SOS/whitelist; the call may be refused", phone
+                "The requested number is not in the tracker's SOS/whitelist; the call may be refused"
             )
         try:
             await self.coordinator.client.make_call(self.watch_id, phone)

@@ -12,24 +12,27 @@ from unittest.mock import patch
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
+import pytest
 from pytest_homeassistant.common import MockConfigEntry
 from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.myki.api import BASE_URL, MykiError
 from custom_components.myki.const import DOMAIN
 
-WATCH_ID = "3747004238"
+WATCH_ID = "test-tracker"
 NICK = "TestKid"
 
 WATCHES = {"isok": True, "data": {"allw": [{"id": WATCH_ID, "nickname": NICK, "api": 2}]}}
 
 ZONES = {
     "safe_zone_1": json.dumps(
-        {"name": "Home", "lat": 35.92414, "lon": 14.45332, "radius": 0.212, "active": 1, "profile": 1}
+        {"name": "Home", "lat": 10.0, "lon": 20.0, "radius": 0.212, "active": 1, "profile": 1}
     ),
     "safe_zone_2": json.dumps(
-        {"name": "School", "lat": 35.90756, "lon": 14.49165, "radius": 0.127, "active": 1, "profile": 1}
+        {"name": "School", "lat": 10.03, "lon": 20.02, "radius": 0.127, "active": 1, "profile": 1}
     ),
 }
 
@@ -39,15 +42,15 @@ APP_DATA = {
     "data": {
         "current": {
             "takenat": "2026-11-07 12:37:29",
-            "position": {"type": "WiFi", "latitude": 35.92417, "longitude": 14.45502, "accuracy": 25},
+            "position": {"type": "WiFi", "latitude": 10.0001, "longitude": 20.0001, "accuracy": 25},
             "gpsSatelites": 3,
             "wifi": [{"ssid": "a"}, {"ssid": "b"}],
             "baseStations": 4,
             "battery": "85", "RTT_secondsLeft": "0",
             "steps": {"allSteps": 1353915, "todaySteps": 4321},
         },
-        "settings": {"online": "1", "nickname": NICK, "msisdn": "+35679060465", "mcc_mnc": "27821", "last_data_package": str(int(time.time())), **ZONES},
-        "commands": {"sos_phone_1": "0035679248232", "whitelist_1": "0035679248232,0035699859524", "volume_ring": "4", "volume_call": "6"},
+        "settings": {"online": "1", "nickname": NICK, "msisdn": "+15555550100", "mcc_mnc": "27821", "last_data_package": str(int(time.time())), **ZONES},
+        "commands": {"sos_phone_1": "0015555550100", "whitelist_1": "0015555550100,0015555550101", "volume_ring": "4", "volume_call": "6"},
     },
 }
 
@@ -85,8 +88,8 @@ async def test_setup_creates_entities(hass: HomeAssistant, aioclient_mock) -> No
 
     tracker = hass.states.get(f"device_tracker.{NICK.lower()}")
     assert tracker is not None
-    assert tracker.attributes["latitude"] == 35.92417
-    assert tracker.attributes["longitude"] == 14.45502
+    assert tracker.attributes["latitude"] == 10.0001
+    assert tracker.attributes["longitude"] == 20.0001
     assert tracker.attributes["zone"] == "Home"
 
     assert hass.states.get(f"sensor.{NICK.lower()}_battery").state == "85"
@@ -152,7 +155,7 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
-        options={"call_me_number": "+35679060465"},
+        options={"call_me_number": "+15555550100"},
         unique_id="test@example.com",
     )
     entry.add_to_hass(hass)
@@ -160,7 +163,7 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     await hass.async_block_till_done()
     aioclient_mock.get(f"{BASE_URL}/watch/find?id={WATCH_ID}", json={"isok": True})
     aioclient_mock.get(
-        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B35679060465", json={"isok": True}
+        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B15555550100", json={"isok": True}
     )
     aioclient_mock.get(
         f"{BASE_URL}/watch/callvolset?id={WATCH_ID}&volume=5", json={"isok": True}
@@ -177,7 +180,7 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("watch/find" in u for u in urls)
-    assert any("watch/call" in u and "phone=%2B35679060465" in u for u in urls)
+    assert any("watch/call" in u and "phone=%2B15555550100" in u for u in urls)
 
     # volume sliders reflect the payload and can be set
     assert hass.states.get(f"number.{NICK.lower()}_ring_volume").state == "4"
@@ -258,16 +261,16 @@ async def test_diagnostic_sensors(hass: HomeAssistant, aioclient_mock) -> None:
 async def test_make_call_service(hass: HomeAssistant, aioclient_mock) -> None:
     await _setup(hass, aioclient_mock)
     aioclient_mock.get(
-        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B35679060465", json={"isok": True}
+        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B15555550100", json={"isok": True}
     )
     await hass.services.async_call(
         "myki",
         "make_call",
-        {"entity_id": f"device_tracker.{NICK.lower()}", "phone": "+35679060465"},
+        {"entity_id": f"device_tracker.{NICK.lower()}", "phone": "+15555550100"},
         blocking=True,
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
-    assert any("watch/call" in u and "phone=%2B35679060465" in u for u in urls)
+    assert any("watch/call" in u and "phone=%2B15555550100" in u for u in urls)
 
 
 async def test_unique_ids_are_stable(hass: HomeAssistant, aioclient_mock) -> None:
@@ -304,9 +307,118 @@ async def test_invalid_safe_zone_is_unknown_and_recovers(hass: HomeAssistant, ai
     assert state.attributes["options"] == ["away"]
     assert not any(key.startswith("distance_to_") for key in state.attributes)
     tracker = hass.states.get(f"device_tracker.{NICK.lower()}")
-    assert tracker.attributes["latitude"] == 35.92417
+    assert tracker.attributes["latitude"] == 10.0001
     assert tracker.attributes["zone"] is None
 
     coordinator.async_set_updated_data(original)
     await hass.async_block_till_done()
     assert hass.states.get(entity_id).state == "Home"
+
+
+@pytest.mark.parametrize("button,method", [
+    ("find", "find"), ("call_me", "make_call"), ("live_tracking", "start_rtt"),
+])
+async def test_failed_button_is_reported(hass: HomeAssistant, aioclient_mock, button, method):
+    entry = await _setup(hass, aioclient_mock)
+    hass.config_entries.async_update_entry(entry, options={"call_me_number": "+15555550100"})
+    await hass.async_block_till_done()
+    with patch.object(entry.runtime_data.client, method, side_effect=MykiError("offline")):
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                "button", "press", {"entity_id": f"button.{NICK.lower()}_{button}"}, blocking=True
+            )
+
+
+@pytest.mark.parametrize("control,method", [
+    ("ring_volume", "set_ring_volume"), ("call_volume", "set_call_volume"),
+])
+async def test_failed_volume_write_keeps_confirmed_value(hass: HomeAssistant, aioclient_mock, control, method):
+    entry = await _setup(hass, aioclient_mock)
+    entity_id = f"number.{NICK.lower()}_{control}"
+    previous = hass.states.get(entity_id).state
+    with patch.object(entry.runtime_data.client, method, side_effect=MykiError("offline")):
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                "number", "set_value", {"entity_id": entity_id, "value": 3}, blocking=True
+            )
+    assert hass.states.get(entity_id).state == previous
+
+
+@pytest.mark.parametrize("control,method,key", [
+    ("ring_volume", "set_ring_volume", "volume_ring"),
+    ("call_volume", "set_call_volume", "volume_call"),
+])
+async def test_volume_displays_cloud_readback(hass: HomeAssistant, aioclient_mock, control, method, key):
+    entry = await _setup(hass, aioclient_mock)
+    cloud_data = deepcopy(APP_DATA["data"])
+    cloud_data["commands"][key] = "2"
+    with (
+        patch.object(entry.runtime_data.client, method) as write,
+        patch.object(entry.runtime_data.client, "app_data", return_value=cloud_data),
+    ):
+        await hass.services.async_call(
+            "number", "set_value",
+            {"entity_id": f"number.{NICK.lower()}_{control}", "value": 3}, blocking=True,
+        )
+        await hass.async_block_till_done()
+        write.assert_awaited_once_with(WATCH_ID, 3)
+    assert hass.states.get(f"number.{NICK.lower()}_{control}").state == "2"
+
+
+@pytest.mark.parametrize("service,method", [("find", "find"), ("make_call", "make_call")])
+async def test_failed_tracker_action(hass: HomeAssistant, aioclient_mock, caplog, service, method):
+    entry = await _setup(hass, aioclient_mock)
+    data = {"entity_id": f"device_tracker.{NICK.lower()}"}
+    if service == "make_call":
+        data["phone"] = "+15555550100"
+    with patch.object(entry.runtime_data.client, method, side_effect=MykiError("offline")):
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(DOMAIN, service, data, blocking=True)
+    assert "+15555550100" not in caplog.text
+
+
+async def test_action_targets_only_selected_tracker(hass: HomeAssistant, aioclient_mock):
+    other = {"id": "other-tracker", "nickname": "Other tracker"}
+    aioclient_mock.get(f"{BASE_URL}/watch/app-data?id=other-tracker", json=APP_DATA)
+    aioclient_mock.get(f"{BASE_URL}/watch/history/events?id=other-tracker", json={"isok": True})
+    with patch("custom_components.myki.api.MykiClient.watches", return_value=[WATCHES["data"]["allw"][0], other]):
+        entry = await _setup(hass, aioclient_mock)
+    with patch.object(entry.runtime_data.client, "find") as find:
+        await hass.services.async_call(
+            DOMAIN, "find", {"entity_id": f"device_tracker.{NICK.lower()}"}, blocking=True
+        )
+        find.assert_awaited_once_with(WATCH_ID)
+
+
+async def test_reload_preserves_user_entity_customization(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    registry = er.async_get(hass)
+    old_id = f"sensor.{NICK.lower()}_gsm_signal"
+    unique_id = registry.async_get(old_id).unique_id
+    registry.async_update_entity(old_id, new_entity_id="sensor.custom_signal", name="Custom signal")
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    restored = registry.async_get("sensor.custom_signal")
+    assert restored.unique_id == unique_id
+    assert restored.name == "Custom signal"
+    assert hass.states.get("sensor.custom_signal") is not None
+
+
+async def test_removed_tracker_makes_all_entities_unavailable(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    registry = er.async_get(hass)
+    entities = er.async_entries_for_config_entry(registry, entry.entry_id)
+    entry.runtime_data.async_set_updated_data({})
+    await hass.async_block_till_done()
+    assert all(hass.states.get(entity.entity_id).state == "unavailable" for entity in entities)
+
+
+@pytest.mark.parametrize("offset,expected", [(-10, "on"), (-1801, "off"), (10, "off"), (None, "unknown")])
+async def test_fresh_data_requires_a_recent_past_timestamp(hass: HomeAssistant, aioclient_mock, offset, expected):
+    entry = await _setup(hass, aioclient_mock)
+    data = deepcopy(entry.runtime_data.data)
+    data[WATCH_ID]["app"]["settings"]["last_data_package"] = None if offset is None else time.time() + offset
+    entry.runtime_data.async_set_updated_data(data)
+    await hass.async_block_till_done()
+    assert hass.states.get(f"binary_sensor.{NICK.lower()}_fresh_data").state == expected

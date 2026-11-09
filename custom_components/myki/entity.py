@@ -30,7 +30,7 @@ class MykiEntity(CoordinatorEntity[MykiCoordinator]):
     @property
     def app_data(self) -> dict[str, Any]:
         """The tracker's app-data payload ({current, settings, commands})."""
-        return self.coordinator.data[self.watch_id]["app"]
+        return self.coordinator.data.get(self.watch_id, {}).get("app", {})
 
     @property
     def available(self) -> bool:

@@ -14,7 +14,7 @@ from .entity import MykiEntity
 def _volume(app_data: dict, key: str) -> int | None:
     try:
         return int((app_data.get("commands") or {}).get(key))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 

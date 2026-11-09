@@ -1,6 +1,6 @@
 # MyKi reverse engineering notes
 
-How the integration talks to the cloud: everything below was derived from the official Android app (v2.6.19, `com.allterco.mykispot`) and verified with live API calls.
+The integration uses the MyKi Spot Android app API (v2.6.19, `com.allterco.mykispot`). These notes combine decompiled code paths with selected live API responses; listing an endpoint does not prove that its behavior has been verified on hardware.
 
 
 ## Server & auth
@@ -20,7 +20,7 @@ How the integration talks to the cloud: everything below was derived from the of
 | Events | `GET /api/watch/history/events?id=<id>` |
 | Steps | `GET /api/watch/history/steps?id=<id>[&day=YYYY-MM-DD]` |
 | Find watch (ring) | `GET /api/watch/find?id=<id>` |
-| Real-time tracking | `GET /api/watch/rtt?id=<id>&duration=<sec>` |
+| Real-time tracking | `GET /api/watch/rtt?id=<id>&duration=<duration>` |
 
 Commands also available (not needed for presence): `watch/call`, `watch/sos`, `watch/whitelist`, `watch/save-settings?key=&val=`, `watch/profile`, `watch/led`, `watch/mode`, `watch/poweroff`, `watch/reset`, `watch/factory`, `watch/silencetime`, `watch/remind`, `watch/ringvolset`, `watch/callvolset`, `watch/ringtone`, `user/edit`, `user/delete`, `reset/password`.
 
@@ -38,11 +38,11 @@ Commands also available (not needed for presence): `watch/call`, `watch/sos`, `w
     },
     "settings": {
       "online": "1",
-      "msisdn": "+39...",
-      "nickname": "Nome",
+      "msisdn": "+15555550100",
+      "nickname": "Example tracker",
       "battery_save_mode": "...",
-      "safe_zone_1": "{\"name\":\"Casa\",\"lat\":45.1,\"lon\":9.3,\"radius\":150,\"active\":1,\"profile\":1}",
-      "safe_zone_2": "{\"name\":\"Scuola\",...}",
+      "safe_zone_1": "{\"name\":\"Home\",\"lat\":10.0,\"lon\":20.0,\"radius\":0.15,\"active\":1,\"profile\":1}",
+      "safe_zone_2": "{\"name\":\"School\",...}",
       "mode": "..."
     },
     "commands": {
@@ -59,7 +59,7 @@ Notes: values are strings; `takenat` is watch-local time; `safe_zone_N` is a JSO
 
 ## Extra details (verified later)
 
-- Events (`watch/history/events`): items have `event_name` + `timestamp`; known types: `sos_alarm`, `low_battery`, safe zone in/out.
-- RTT (`watch/rtt?duration=`): duration in minutes, app default "10".
+- Events (`watch/history/events`): items contain `event_name` + `timestamp`. Tests cover numeric timestamps; actual timestamp semantics and safe-zone event names still need vendor/hardware evidence. Startup history is not replayed.
+- RTT (`watch/rtt?duration=`): the integration treats duration as minutes and sends the app default "10"; exact hardware timing remains to be verified.
 - Live test 2025-11-07: 2 watches on account, full payload confirmed (wifi list, gsm signal, satellites, steps, timezone with next DST change, firmware).
-- **MyKi Family app** (`com.allterco.mykifamily`, other Allterco devices) uses a different backend: `https://mj1-1.allterco.net:8020/japi` (see `myki-re/family/`). Future work.
+- **MyKi Family app** (`com.allterco.mykifamily`, other Allterco devices) uses a different backend: `https://mj1-1.allterco.net:8020/japi` The analysis artifacts are not shipped here. Future work (#5).
