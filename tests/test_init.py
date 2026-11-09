@@ -3,6 +3,7 @@
 These would have caught the platform setup signature bug found in the field.
 """
 
+from asyncio import gather, sleep
 from copy import deepcopy
 from datetime import timedelta
 import json
@@ -163,7 +164,7 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     await hass.async_block_till_done()
     aioclient_mock.get(f"{BASE_URL}/watch/find?id={WATCH_ID}", json={"isok": True})
     aioclient_mock.get(
-        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B15555550100", json={"isok": True}
+        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=0015555550100", json={"isok": True}
     )
     aioclient_mock.get(
         f"{BASE_URL}/watch/callvolset?id={WATCH_ID}&volume=5", json={"isok": True}
@@ -180,7 +181,7 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("watch/find" in u for u in urls)
-    assert any("watch/call" in u and "phone=%2B15555550100" in u for u in urls)
+    assert any("watch/call" in u and "phone=0015555550100" in u for u in urls)
 
     # volume sliders reflect the payload and can be set
     assert hass.states.get(f"number.{NICK.lower()}_ring_volume").state == "4"
@@ -261,7 +262,7 @@ async def test_diagnostic_sensors(hass: HomeAssistant, aioclient_mock) -> None:
 async def test_make_call_service(hass: HomeAssistant, aioclient_mock) -> None:
     await _setup(hass, aioclient_mock)
     aioclient_mock.get(
-        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=%2B15555550100", json={"isok": True}
+        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=0015555550100", json={"isok": True}
     )
     await hass.services.async_call(
         "myki",
@@ -270,7 +271,7 @@ async def test_make_call_service(hass: HomeAssistant, aioclient_mock) -> None:
         blocking=True,
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
-    assert any("watch/call" in u and "phone=%2B15555550100" in u for u in urls)
+    assert any("watch/call" in u and "phone=0015555550100" in u for u in urls)
 
 
 async def test_unique_ids_are_stable(hass: HomeAssistant, aioclient_mock) -> None:
@@ -425,3 +426,214 @@ async def test_fresh_data_requires_a_recent_past_timestamp(hass: HomeAssistant, 
     entry.runtime_data.async_set_updated_data(data)
     await hass.async_block_till_done()
     assert hass.states.get(f"binary_sensor.{NICK.lower()}_fresh_data").state == expected
+
+
+
+async def test_shared_contacts_follow_app_refresh(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    entity_id = f"text.{NICK.lower()}_sos_1"
+    assert hass.states.get(entity_id).state == "0015555550100"
+    changed = deepcopy(APP_DATA["data"])
+    changed["commands"]["sos_phone_1"] = "0015555550103"
+    with patch.object(entry.runtime_data.client, "app_data", return_value=changed):
+        await entry.runtime_data.async_request_refresh()
+    assert hass.states.get(entity_id).state == "0015555550103"
+
+
+async def test_edit_sos_contact_verifies_cloud_readback(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    confirmed = deepcopy(APP_DATA["data"])
+    confirmed["commands"]["sos_phone_1"] = "0015555550103"
+    with (
+        patch.object(entry.runtime_data.client, "app_data", side_effect=[APP_DATA["data"], confirmed]),
+        patch.object(entry.runtime_data.client, "set_sos_number") as write,
+    ):
+        await hass.services.async_call("text", "set_value", {
+            "entity_id": f"text.{NICK.lower()}_sos_1", "value": "+15555550103",
+        }, blocking=True)
+        write.assert_awaited_once_with(WATCH_ID, 1, "0015555550103")
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state == "0015555550103"
+
+
+async def test_whitelist_preserves_hidden_slots_and_latest_siblings(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    fresh = deepcopy(APP_DATA["data"])
+    fresh["commands"]["whitelist_2"] = "0015555550104,,0015555550106,,0015555550108"
+    confirmed = deepcopy(fresh)
+    confirmed["commands"]["whitelist_2"] = "0015555550104,0015555550105,0015555550106,,0015555550108"
+    with (
+        patch.object(entry.runtime_data.client, "app_data", side_effect=[fresh, confirmed]),
+        patch.object(entry.runtime_data.client, "set_whitelist") as write,
+    ):
+        await hass.services.async_call("text", "set_value", {
+            "entity_id": f"text.{NICK.lower()}_whitelist_7", "value": "+15555550105",
+        }, blocking=True)
+        write.assert_awaited_once_with(WATCH_ID, 2, [
+            "0015555550104", "0015555550105", "0015555550106", "", "0015555550108",
+        ])
+    assert hass.states.get(f"text.{NICK.lower()}_whitelist_7").state == "0015555550105"
+
+
+@pytest.mark.parametrize("failure", ["offline", "rejected", "changed", "unconfirmed", "missing_group", "malformed"])
+async def test_contact_failures_never_claim_success(hass: HomeAssistant, aioclient_mock, failure):
+    entry = await _setup(hass, aioclient_mock)
+    fresh = deepcopy(APP_DATA["data"])
+    slot = "sos_1"
+    expected = "0015555550100"
+    if failure == "offline":
+        fresh["settings"]["online"] = "0"
+    elif failure == "changed":
+        fresh["commands"]["sos_phone_1"] = "0015555550109"
+    elif failure == "missing_group":
+        slot, expected = "whitelist_7", ""
+    elif failure == "malformed":
+        fresh["commands"]["whitelist_1"] = "invalid"
+    with (
+        patch.object(entry.runtime_data.client, "app_data", return_value=fresh),
+        patch.object(entry.runtime_data.client, "set_sos_number", side_effect=MykiError("rejected") if failure == "rejected" else None) as sos,
+        patch.object(entry.runtime_data.client, "set_whitelist") as whitelist,
+    ):
+        with pytest.raises(MykiError):
+            await entry.runtime_data.async_set_contact(WATCH_ID, slot, "+15555550103", expected)
+        if failure not in ("unconfirmed", "rejected"):
+            sos.assert_not_awaited()
+        whitelist.assert_not_awaited()
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state != "0015555550103"
+
+
+async def test_equivalent_contact_edit_does_not_rewrite_storage(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    with patch.object(entry.runtime_data.client, "set_sos_number") as write:
+        await entry.runtime_data.async_set_contact(WATCH_ID, "sos_1", "+15555550100", "0015555550100")
+        write.assert_not_awaited()
+
+
+async def test_call_slot_resolves_current_cloud_value(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    changed = deepcopy(APP_DATA["data"])
+    changed["commands"]["sos_phone_1"] = "0015555550103"
+    with (
+        patch.object(entry.runtime_data.client, "app_data", return_value=changed),
+        patch.object(entry.runtime_data.client, "make_call") as call,
+    ):
+        await hass.services.async_call(DOMAIN, "make_call", {
+            "entity_id": f"device_tracker.{NICK.lower()}", "contact": "sos_1",
+        }, blocking=True)
+        call.assert_awaited_once_with(WATCH_ID, "0015555550103")
+
+
+@pytest.mark.parametrize("target", [{"contact": "sos_3"}, {"phone": "+15555550109"}, {}])
+async def test_call_rejects_empty_or_unshared_contacts(hass: HomeAssistant, aioclient_mock, target):
+    entry = await _setup(hass, aioclient_mock)
+    with patch.object(entry.runtime_data.client, "make_call") as call:
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(DOMAIN, "make_call", {
+                "entity_id": f"device_tracker.{NICK.lower()}", **target,
+            }, blocking=True)
+        call.assert_not_awaited()
+
+
+async def test_selected_contact_persists_without_copying_number(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    await hass.services.async_call("select", "select_option", {
+        "entity_id": f"select.{NICK.lower()}_call_contact", "option": "sos_1",
+    }, blocking=True)
+    await hass.async_block_till_done()
+    assert entry.options["call_contacts"] == {WATCH_ID: "sos_1"}
+    assert hass.states.get(f"select.{NICK.lower()}_call_contact").state == "sos_1"
+    with patch.object(entry.runtime_data.client, "make_call") as call:
+        await hass.services.async_call("button", "press", {
+            "entity_id": f"button.{NICK.lower()}_call_me",
+        }, blocking=True)
+        call.assert_awaited_once_with(WATCH_ID, "0015555550100")
+
+
+@pytest.mark.parametrize("legacy,selected", [("+15555550100", "sos_1"), ("+15555550109", "none")])
+async def test_legacy_call_number_migrates_only_existing_shared_contact(hass: HomeAssistant, aioclient_mock, legacy, selected):
+    _mock_cloud(aioclient_mock)
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
+                            options={"call_me_number": legacy, "scan_interval": 120})
+    entry.add_to_hass(hass)
+    with patch("custom_components.myki.api.MykiClient.set_sos_number") as write:
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        write.assert_not_awaited()
+    assert "call_me_number" not in entry.options
+    assert entry.options["scan_interval"] == 120
+    assert entry.options.get("call_contacts", {}).get(WATCH_ID, "none") == selected
+    assert hass.states.get(f"select.{NICK.lower()}_call_contact").state == selected
+    if selected == "none":
+        assert hass.states.get(f"button.{NICK.lower()}_call_me").state == "unavailable"
+
+
+
+async def test_contact_writes_are_serialized_without_losing_siblings(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    cloud = deepcopy(APP_DATA["data"])
+    cloud["commands"]["whitelist_1"] = ",,,,"
+    active = maximum = 0
+
+    async def read(wid):
+        return deepcopy(cloud)
+
+    async def write(wid, group, phones):
+        nonlocal active, maximum
+        active += 1
+        maximum = max(maximum, active)
+        await sleep(0)  # Allow the second edit to contend for the lock.
+        cloud["commands"][f"whitelist_{group}"] = ",".join(phones)
+        active -= 1
+
+    with (
+        patch.object(entry.runtime_data.client, "app_data", side_effect=read),
+        patch.object(entry.runtime_data.client, "set_whitelist", side_effect=write),
+    ):
+        await gather(
+            entry.runtime_data.async_set_contact(WATCH_ID, "whitelist_1", "0015555550104", ""),
+            entry.runtime_data.async_set_contact(WATCH_ID, "whitelist_2", "0015555550105", ""),
+        )
+    assert maximum == 1
+    assert cloud["commands"]["whitelist_1"] == "0015555550104,0015555550105,,,"
+
+
+async def test_readback_checks_untouched_whitelist_entries_too(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    confirmed = deepcopy(APP_DATA["data"])
+    confirmed["commands"]["whitelist_1"] = "0015555550104,0015555550109"
+    with (
+        patch.object(entry.runtime_data.client, "app_data", side_effect=[APP_DATA["data"], confirmed]),
+        patch.object(entry.runtime_data.client, "set_whitelist"),
+    ):
+        with pytest.raises(MykiError, match="not confirmed"):
+            await entry.runtime_data.async_set_contact(WATCH_ID, "whitelist_1", "0015555550104", "0015555550100")
+    assert hass.states.get(f"text.{NICK.lower()}_whitelist_2").state == "0015555550109"
+
+
+async def test_contact_write_can_clear_a_slot(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    confirmed = deepcopy(APP_DATA["data"])
+    confirmed["commands"]["sos_phone_1"] = ""
+    with (
+        patch.object(entry.runtime_data.client, "app_data", side_effect=[APP_DATA["data"], confirmed]),
+        patch.object(entry.runtime_data.client, "set_sos_number") as write,
+    ):
+        await entry.runtime_data.async_set_contact(WATCH_ID, "sos_1", "", "0015555550100")
+        write.assert_awaited_once_with(WATCH_ID, 1, "")
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state == ""
+
+
+
+async def test_failed_contact_readback_is_not_reported_as_success(hass: HomeAssistant, aioclient_mock):
+    entry = await _setup(hass, aioclient_mock)
+    with (
+        patch.object(entry.runtime_data.client, "app_data", side_effect=[
+            APP_DATA["data"], MykiError("request timed out"), APP_DATA["data"],
+        ]),
+        patch.object(entry.runtime_data.client, "set_sos_number") as write,
+    ):
+        with pytest.raises(HomeAssistantError, match="contact update failed"):
+            await hass.services.async_call("text", "set_value", {
+                "entity_id": f"text.{NICK.lower()}_sos_1", "value": "0015555550103",
+            }, blocking=True)
+        write.assert_awaited_once_with(WATCH_ID, 1, "0015555550103")
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state == "0015555550100"

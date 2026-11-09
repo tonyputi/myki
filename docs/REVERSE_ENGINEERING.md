@@ -57,6 +57,22 @@ Commands also available (not needed for presence): `watch/call`, `watch/sos`, `w
 
 Notes: values are strings; `takenat` is watch-local time; `safe_zone_N` is a JSON string inside a string, **radius in km** (app stores meters ÷ 1000, confirmed in `SafeZonesFragment`); DND "all zeros" pattern means off.
 
+## Contact slot evidence
+
+Static inspection of the operator-supplied installed APK, version `2.6.19.8a84c06` (version code `2025082601`), SHA-256 `7196ce4e66dc4924da966e30645597a27b4538353f6fc3771ba9aca2b676eca2`:
+
+- `ApiInterface.addSosNumber`: `GET watch/sos?id=&num=1..3&phone=` writes an individual SOS slot.
+- `ApiInterface.addWhitelistNumbers`: `GET watch/whitelist?id=&whitelist=1..2&phone1=&phone2=&phone3=&phone4=&phone5=` writes one complete five-slot group, including empty values.
+- `TrackerInformationHandler.getTrackerInformation` reads `commands.sos_phone_1..3` and comma-separated `commands.whitelist_1..2`.
+- `TrackerInformation.getWhitelistFirstFive/getWhitelistSecondFive` split the groups by comma, preserving positional slots; an empty group is treated as five blanks.
+- `SosAndWhitelistFragment.setPhoneNumbersToEditTexts/makeChanges` exposes three SOS and seven whitelist fields. The app sends whitelist 1 as five numbers and whitelist 2 as two numbers followed by three blanks. HA deliberately preserves all five existing entries instead of copying that destructive behavior.
+- `addSosNumber/addWhiteListNumbers/getContactPhone` convert `+` to `00` and strip non-digits. HA accepts only digits with an optional leading `+`, rejecting malformed input instead of silently deleting characters. Equivalent `+`/`00` values compare equally without guessing a country prefix.
+- The phonebook buttons use Android `ACTION_PICK` with the phone contact MIME type; the fragment stores numbers, not contact names.
+
+Analysis used the existing JADX CLI, not REA Evidence: REA's Android provider was unavailable because `REA_JADX_MCP_JAR` was not configured. The full decompilation reported 119 errors elsewhere; the contact fragment's write/read methods and API declarations above were available as Java output. No APK execution, app storage extraction, credential access or live contact write was performed. Static declarations establish the app protocol, not server acceptance or hardware application; the physical round-trip remains an explicit #27 verification task.
+
+The API exposes no conditional-write revision in these declarations. Local HA serialization cannot guarantee atomic conflict prevention against simultaneous app edits; read-before-write and readback reduce, but cannot eliminate, that race.
+
 ## Extra details (verified later)
 
 - Events (`watch/history/events`): items contain `event_name` + `timestamp`. Tests cover numeric timestamps; actual timestamp semantics and safe-zone event names still need vendor/hardware evidence. Startup history is not replayed.

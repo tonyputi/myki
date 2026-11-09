@@ -21,7 +21,7 @@ App code paths and stored cloud fields do not prove that every feature works on 
 - Daily GPS track (per day), events list (SOS alarm, low battery, safe zone in/out), step counter (today / per day / all).
 
 ### Watch configuration (remote commands)
-- SOS numbers (3), whitelist (10), phonebook.
+- SOS numbers (3) and app-visible whitelist numbers (7). The cloud stores two five-entry whitelist groups; the app does not expose the last three entries. The phonebook icon imports a number from Android contacts, not a separate named cloud address book.
 - Ring & call volumes, ringtone, sound profiles.
 - DND / silence time (4 periods), alarms/reminders (3).
 - LED on/off, mode, battery save mode, language, timezone.

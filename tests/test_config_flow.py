@@ -100,13 +100,13 @@ async def test_reauth_preserves_options_and_reloads(hass: HomeAssistant, cloud):
 
 
 async def test_options_save(hass: HomeAssistant, cloud):
-    entry = MockConfigEntry(domain=DOMAIN, data=CREDENTIALS)
+    entry = MockConfigEntry(domain=DOMAIN, data=CREDENTIALS, options={"call_contacts": {"test-tracker": "sos_2"}})
     entry.add_to_hass(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    options = {"scan_interval": 120, "call_me_number": "+15555550100"}
+    options = {"scan_interval": 120}
     result = await hass.config_entries.options.async_configure(result["flow_id"], options)
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == options
+    assert entry.options == {**options, "call_contacts": {"test-tracker": "sos_2"}}
 
 
 async def test_options_reject_short_interval(hass: HomeAssistant, cloud):

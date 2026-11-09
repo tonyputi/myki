@@ -6,7 +6,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import MykiError
-from .const import CONF_CALL_ME_NUMBER
+from .const import CONF_CALL_CONTACTS
+from .contacts import CONTACT_SLOTS, contact_numbers
 from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
 
@@ -43,7 +44,7 @@ class MykiFindButton(MykiEntity, ButtonEntity):
 
 
 class MykiCallMeButton(MykiEntity, ButtonEntity):
-    """Makes the tracker call the number configured in the integration options."""
+    """Call the selected shared contact, resolving its current cloud number."""
 
     _attr_translation_key = "call_me"
 
@@ -53,18 +54,20 @@ class MykiCallMeButton(MykiEntity, ButtonEntity):
 
     @property
     def available(self) -> bool:
-        return (
-            super().available
-            and bool(self.coordinator.config_entry.options.get(CONF_CALL_ME_NUMBER))
-        )
+        slot = self.coordinator.config_entry.options.get(CONF_CALL_CONTACTS, {}).get(self.watch_id)
+        try:
+            return super().available and slot in CONTACT_SLOTS and bool(contact_numbers(self.app_data)[slot])
+        except MykiError:
+            return False
 
     async def async_press(self) -> None:
-        phone = self.coordinator.config_entry.options.get(CONF_CALL_ME_NUMBER)
-        if not phone:
-            raise HomeAssistantError("No 'call me' number configured in the integration options")
+        slot = self.coordinator.config_entry.options.get(CONF_CALL_CONTACTS, {}).get(self.watch_id)
+        if slot not in CONTACT_SLOTS:
+            raise HomeAssistantError("Choose a shared contact slot on the device first")
         try:
-            await self.coordinator.client.make_call(self.watch_id, phone)
+            await self.coordinator.async_call_contact(self.watch_id, slot)
         except MykiError as err:
+            await self.coordinator.async_request_refresh()
             raise HomeAssistantError(f"MyKi call failed: {err}") from err
 
 
