@@ -2,7 +2,6 @@
 
 import json
 import math
-import re
 from typing import Any
 
 AWAY = "away"
@@ -111,19 +110,6 @@ def get_steps_today(app_data: dict[str, Any]) -> int | None:
         return int(((app_data.get("current") or {}).get("steps") or {}).get("todaySteps"))
     except (TypeError, ValueError, OverflowError):
         return None
-
-
-def authorized_phones(app_data: dict[str, Any]) -> set[str]:
-    """All phone numbers the watch is allowed to interact with (SOS + whitelist)."""
-    commands = app_data.get("commands") or {}
-    phones: set[str] = set()
-    for key, value in commands.items():
-        if re.fullmatch(r"(?:sos_phone|whitelist)_\d+", key) and isinstance(value, str):
-            for part in value.split(","):
-                phone = part.strip()
-                if re.fullmatch(r"\+?[0-9]+", phone):
-                    phones.add(phone)
-    return phones
 
 
 # Known firmware-prefix -> product model map. Verified live unless noted;

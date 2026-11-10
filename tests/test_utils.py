@@ -6,7 +6,6 @@ import pytest
 
 from custom_components.myki.utils import (
     AWAY,
-    authorized_phones,
     distance_meters,
     get_battery,
     get_gsm_signal,
@@ -74,13 +73,6 @@ def test_battery_steps_online():
     assert is_online(data) is True
     assert is_online(payload(online="0")) is False
     assert get_battery({"current": {"battery": None}}) is None
-
-
-def test_authorized_phones():
-    data = payload()
-    data["commands"].update({"volume_ring": "4", "interval": "120", "whitelist_mode": "1"})
-    data["commands"]["sos_phone_2"] = "+15555550102"
-    assert authorized_phones(data) == {"0015555550100", "0015555550101", "+15555550102"}
 
 
 def test_get_model_spot_fw():

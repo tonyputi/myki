@@ -2,7 +2,7 @@
 
 import re
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import aiohttp
 
@@ -90,6 +90,23 @@ class MykiClient:
         if not re.fullmatch(r"\+?[0-9]+", phone):
             raise MykiError("invalid phone number")
         await self._get(f"/watch/call?id={quote(watch_id, safe='')}&phone={quote(phone, safe='')}")
+
+    async def set_sos_number(self, watch_id: str, slot: int, phone: str) -> None:
+        """Write one SOS slot using the app endpoint."""
+        if slot not in (1, 2, 3) or not re.fullmatch(r"[0-9]*", phone):
+            raise MykiError("invalid SOS contact")
+        await self._get("/watch/sos?" + urlencode({"id": watch_id, "num": slot, "phone": phone}))
+
+    async def set_whitelist(self, watch_id: str, group: int, phones: list[str]) -> None:
+        """Write a complete five-slot group, preserving untouched entries."""
+        if group not in (1, 2) or len(phones) != 5 or any(
+            not isinstance(phone, str) or not re.fullmatch(r"\+?[0-9]*", phone) or phone == "+"
+            for phone in phones
+        ):
+            raise MykiError("invalid whitelist contacts")
+        query = {"id": watch_id, "whitelist": group}
+        query.update({f"phone{i}": phone for i, phone in enumerate(phones, start=1)})
+        await self._get("/watch/whitelist?" + urlencode(query))
 
     async def start_rtt(self, watch_id: str, duration_minutes: int = 10) -> None:
         """Start real-time tracking (device reports at high frequency)."""

@@ -9,17 +9,35 @@ find:
 make_call:
   name: Make tracker call
   description: >-
-    Make the tracker place a call to a phone number. The number should be in the
-    tracker's SOS numbers or whitelist, otherwise the tracker may refuse the call.
+    Call a shared SOS or whitelist slot using its current MyKi cloud number.
+    Supply either contact or the legacy phone field, not both.
   target:
     entity:
       integration: myki
       domain: device_tracker
   fields:
+    contact:
+      name: Shared contact
+      description: The existing MyKi contact slot to call.
+      example: sos_1
+      selector:
+        select:
+          options:
+            - sos_1
+            - sos_2
+            - sos_3
+            - whitelist_1
+            - whitelist_2
+            - whitelist_3
+            - whitelist_4
+            - whitelist_5
+            - whitelist_6
+            - whitelist_7
     phone:
       name: Phone number
-      description: The number the tracker should call, including the country prefix.
-      required: true
+      description: >-
+        Deprecated. Only numbers already in an app-visible shared contact are accepted;
+        use contact instead. International + and 00 prefixes are compared equivalently.
       example: "+15555550100"
       selector:
         text:

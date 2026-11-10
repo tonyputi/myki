@@ -70,3 +70,26 @@ async def test_invalid_call_number_is_rejected_before_request(client, aioclient_
     with pytest.raises(MykiError, match="invalid phone number"):
         await client.make_call("test-tracker", phone)
     assert not aioclient_mock.mock_calls
+
+
+
+async def test_contact_endpoints_preserve_empty_and_encoded_values(client, aioclient_mock):
+    aioclient_mock.get(f"{BASE_URL}/watch/sos?id=test%26tracker&num=2&phone=", json={"isok": True})
+    aioclient_mock.get(f"{BASE_URL}/watch/whitelist?id=test%26tracker&whitelist=2&phone1=%2B15555550100&phone2=&phone3=0015555550102&phone4=&phone5=", json={"isok": True})
+    await client.set_sos_number("test&tracker", 2, "")
+    await client.set_whitelist("test&tracker", 2, ["+15555550100", "", "0015555550102", "", ""])
+    assert len(aioclient_mock.mock_calls) == 2
+
+
+@pytest.mark.parametrize("slot,phone", [(0, "123"), (4, "123"), (1, "123&x=1"), (2, "+123")])
+async def test_invalid_sos_write_makes_no_request(client, aioclient_mock, slot, phone):
+    with pytest.raises(MykiError):
+        await client.set_sos_number("test-tracker", slot, phone)
+    assert not aioclient_mock.mock_calls
+
+
+@pytest.mark.parametrize("group,phones", [(0, [""] * 5), (3, [""] * 5), (1, [""]), (2, ["invalid"] * 5)])
+async def test_invalid_whitelist_write_makes_no_request(client, aioclient_mock, group, phones):
+    with pytest.raises(MykiError):
+        await client.set_whitelist("test-tracker", group, phones)
+    assert not aioclient_mock.mock_calls

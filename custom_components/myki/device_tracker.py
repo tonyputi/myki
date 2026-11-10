@@ -1,7 +1,5 @@
 """device_tracker entities: GPS position of each tracker, plus the find/call services."""
 
-import logging
-
 from homeassistant.components.device_tracker import SourceType, TrackerEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -10,13 +8,15 @@ import voluptuous as vol
 
 from .api import MykiError
 from .const import ATTR_PHONE, SERVICE_FIND, SERVICE_MAKE_CALL
+from .contacts import CONTACT_SLOTS
 from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
-from .utils import authorized_phones, get_position, get_zone
+from .utils import get_position, get_zone
 
-_LOGGER = logging.getLogger(__name__)
-
-MAKE_CALL_SCHEMA = {vol.Required(ATTR_PHONE): str}
+MAKE_CALL_SCHEMA = {
+    vol.Exclusive(ATTR_PHONE, "target"): str,
+    vol.Exclusive("contact", "target"): vol.In(CONTACT_SLOTS),
+}
 
 
 async def async_setup_entry(
@@ -48,16 +48,12 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
         except MykiError as err:
             raise HomeAssistantError(f"MyKi find failed: {err}") from err
 
-    async def async_make_call(self, phone: str) -> None:
-        """Entity service `myki.make_call`: the tracker calls the given number."""
-        if phone not in authorized_phones(self.app_data):
-            # the device refuses numbers outside SOS/whitelist
-            _LOGGER.warning(
-                "The requested number is not in the tracker's SOS/whitelist; the call may be refused"
-            )
+    async def async_make_call(self, phone: str | None = None, contact: str | None = None) -> None:
+        """Call a shared slot; retain phone-based automations only for shared numbers."""
         try:
-            await self.coordinator.client.make_call(self.watch_id, phone)
+            await self.coordinator.async_call_contact(self.watch_id, contact, phone=phone)
         except MykiError as err:
+            await self.coordinator.async_request_refresh()
             raise HomeAssistantError(f"MyKi call failed: {err}") from err
 
     @property

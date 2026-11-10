@@ -32,8 +32,7 @@
       "init": {
         "title": "Opzioni MyKi",
         "data": {
-          "scan_interval": "Secondi tra gli aggiornamenti (minimo 10)",
-          "call_me_number": "Numero 'Chiamami' (usato dal pulsante Chiamami; meglio se tra i numeri SOS o in whitelist)"
+          "scan_interval": "Secondi tra gli aggiornamenti (minimo 10)"
         }
       }
     }
@@ -100,6 +99,56 @@
       "events": {
         "name": "Eventi"
       }
+    },
+    "text": {
+      "sos_1": {
+        "name": "SOS 1"
+      },
+      "sos_2": {
+        "name": "SOS 2"
+      },
+      "sos_3": {
+        "name": "SOS 3"
+      },
+      "whitelist_1": {
+        "name": "Whitelist 1"
+      },
+      "whitelist_2": {
+        "name": "Whitelist 2"
+      },
+      "whitelist_3": {
+        "name": "Whitelist 3"
+      },
+      "whitelist_4": {
+        "name": "Whitelist 4"
+      },
+      "whitelist_5": {
+        "name": "Whitelist 5"
+      },
+      "whitelist_6": {
+        "name": "Whitelist 6"
+      },
+      "whitelist_7": {
+        "name": "Whitelist 7"
+      }
+    },
+    "select": {
+      "call_contact": {
+        "name": "Contatto da chiamare",
+        "state": {
+          "none": "Nessuno",
+          "sos_1": "SOS 1",
+          "sos_2": "SOS 2",
+          "sos_3": "SOS 3",
+          "whitelist_1": "Whitelist 1",
+          "whitelist_2": "Whitelist 2",
+          "whitelist_3": "Whitelist 3",
+          "whitelist_4": "Whitelist 4",
+          "whitelist_5": "Whitelist 5",
+          "whitelist_6": "Whitelist 6",
+          "whitelist_7": "Whitelist 7"
+        }
+      }
     }
   },
   "services": {
@@ -109,7 +158,7 @@
     },
     "make_call": {
       "name": "Make tracker call",
-      "description": "Fa chiamare un numero di telefono dal tracker."
+      "description": "Chiama uno slot SOS o whitelist condiviso con l'app MyKi."
     }
   }
 }
