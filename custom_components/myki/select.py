@@ -26,6 +26,7 @@ class MykiPersonalizationSelect(MykiEntity, SelectEntity):
     """A cloud setting, with no restored or locally configured selection."""
 
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: MykiCoordinator, watch_id: str, key: str) -> None:
         super().__init__(coordinator, watch_id)

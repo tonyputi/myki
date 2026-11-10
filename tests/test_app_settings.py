@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
 from yarl import URL
@@ -47,6 +48,13 @@ async def settings_entry(hass, aioclient_mock):
     entry.add_to_hass(hass)
     with patch.object(MykiClient, "app_data", side_effect=read):
         assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        # Preserve coverage for users explicitly re-enabling compatibility controls.
+        registry = er.async_get(hass)
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+            if entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION:
+                registry.async_update_entity(entity.entity_id, disabled_by=None)
+        await hass.config_entries.async_reload(entry.entry_id)
         await hass.async_block_till_done()
         yield entry, cloud
 

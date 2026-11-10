@@ -30,10 +30,207 @@
   "options": {
     "step": {
       "init": {
-        "title": "Opzioni MyKi",
-        "data": {
-          "scan_interval": "Secondi tra gli aggiornamenti (minimo 10)"
+        "title": "Impostazioni MyKi",
+        "menu_options": {
+          "tracker": "Impostazioni tracker",
+          "polling": "Aggiornamento integrazione"
         }
+      },
+      "polling": {
+        "title": "Aggiornamento integrazione",
+        "data": {
+          "scan_interval": "Secondi tra aggiornamenti (minimo 10)"
+        }
+      },
+      "tracker": {
+        "title": "Scegli tracker",
+        "data": {
+          "tracker": "Tracker"
+        }
+      },
+      "tracker_menu": {
+        "title": "Impostazioni tracker",
+        "description": "Tracker selezionato: {tracker}",
+        "menu_options": {
+          "contacts": "Contatti",
+          "audio": "Audio e LED di stato",
+          "device": "Dispositivo e batteria",
+          "zones": "Zone sicure",
+          "schedules": "Sveglie e Non disturbare"
+        }
+      },
+      "contacts": {
+        "title": "Scegli posizione contatto",
+        "data": {
+          "contact": "Contatto"
+        }
+      },
+      "contact": {
+        "title": "Modifica {setting}",
+        "data": {
+          "value": "Numero di telefono"
+        },
+        "description": "Tracker: {tracker}. Svuota il campo per rimuovere il contatto. Il salvataggio modifica solo questa posizione e verifica la rilettura dal cloud. I contatti SOS influiscono sul pulsante SOS fisico."
+      },
+      "audio": {
+        "title": "Audio e LED di stato",
+        "data": {
+          "setting": "Impostazione"
+        }
+      },
+      "device": {
+        "title": "Dispositivo e batteria",
+        "data": {
+          "setting": "Impostazione"
+        },
+        "description": "La modalità operativa può influire sul comportamento del dispositivo. Il numero SIM è un dato dell'account: non riprogramma la SIM."
+      },
+      "setting": {
+        "title": "Modifica {setting}",
+        "data": {
+          "value": "Valore"
+        },
+        "description": "Tracker: {tracker}. Il salvataggio modifica solo l'impostazione scelta e verifica la rilettura dal cloud. Nessuna preferenza viene salvata in HA. Il LED di stato predefinito non implica illuminazione continua."
+      },
+      "zones": {
+        "title": "Scegli zona sicura",
+        "data": {
+          "zone": "Zona"
+        }
+      },
+      "zone": {
+        "title": "Modifica {setting}",
+        "data": {
+          "name": "Nome",
+          "location": "Centro e raggio",
+          "enabled": "Attiva",
+          "ring_mode": "Profilo audio e vibrazione"
+        },
+        "description": "Tracker: {tracker}. Scegli il centro sulla mappa e regola il raggio in metri. Nessuna modifica viene inviata prima del salvataggio. È la stessa zona dell'app MyKi, non una zona HA. Il colore resta locale al telefono."
+      },
+      "schedules": {
+        "title": "Scegli orario",
+        "data": {
+          "schedule": "Orario"
+        }
+      },
+      "alarm": {
+        "title": "Modifica {setting}",
+        "data": {
+          "enabled": "Attiva",
+          "time": "Ora",
+          "weekdays": "Giorni della settimana"
+        },
+        "description": "Tracker: {tracker}. Usa l'ora locale del tracker con secondi a zero. Una sveglia attiva richiede almeno un giorno. Le altre sveglie vengono preservate. Il comportamento fisico di fuso e ora legale non è verificato."
+      },
+      "dnd": {
+        "title": "Modifica {setting}",
+        "data": {
+          "enabled": "Attivo",
+          "start": "Ora iniziale",
+          "end": "Ora finale"
+        },
+        "description": "Tracker: {tracker}. Usa l'ora locale del tracker con secondi a zero. Se attivo, inizio e fine devono essere diversi. Si modifica solo il primo periodo; gli altri periodi cloud sono preservati. La disattivazione azzera il primo periodo."
+      }
+    },
+    "error": {
+      "invalid_input": "Valore non valido. Controlla i campi: i secondi devono essere zero e gli orari attivi devono avere ore/giorni validi."
+    },
+    "abort": {
+      "settings_saved": "Impostazione verificata nel cloud MyKi. Nessuna preferenza del tracker è stata salvata in HA.",
+      "integration_not_loaded": "Carica o riautentica l'integrazione prima di modificare le impostazioni del tracker.",
+      "tracker_removed": "Il tracker non è più disponibile su questo account. Riapri la configurazione per aggiornare l'elenco.",
+      "invalid_settings": "Impostazioni cloud mancanti o non valide. Controlla l'app MyKi e aggiorna; nessun valore è stato inventato o scritto.",
+      "invalid_auth": "Autenticazione non riuscita. Riautentica l'integrazione prima di continuare.",
+      "cannot_connect": "Impossibile leggere le impostazioni MyKi. Nessuna impostazione è stata scritta.",
+      "write_failed": "Modifica rifiutata o risultato non verificabile. Il tracker potrebbe essere cambiato. Riapri la configurazione e controlla i valori attuali prima di riprovare; nessun tentativo automatico o ripristino è stato eseguito."
+    }
+  },
+  "selector": {
+    "contacts": {
+      "options": {
+        "sos_1": "SOS 1",
+        "sos_2": "SOS 2",
+        "sos_3": "SOS 3",
+        "whitelist_1": "Whitelist 1",
+        "whitelist_2": "Whitelist 2",
+        "whitelist_3": "Whitelist 3",
+        "whitelist_4": "Whitelist 4",
+        "whitelist_5": "Whitelist 5",
+        "whitelist_6": "Whitelist 6",
+        "whitelist_7": "Whitelist 7"
+      }
+    },
+    "settings": {
+      "options": {
+        "profile": "Modalità suoneria",
+        "ringtone": "Suoneria",
+        "volume_ring": "Volume suoneria",
+        "volume_call": "Volume chiamata",
+        "led": "LED di stato",
+        "mode": "Modalità operativa",
+        "battery_save_mode": "Risparmio batteria",
+        "nickname": "Nome tracker",
+        "msisdn": "Numero SIM"
+      }
+    },
+    "profile": {
+      "options": {
+        "1": "Audio e vibrazione",
+        "2": "Solo audio",
+        "3": "Solo vibrazione",
+        "4": "Muto"
+      }
+    },
+    "ringtone": {
+      "options": {
+        "0": "Classic",
+        "1": "Playtime",
+        "2": "Twinkle"
+      }
+    },
+    "led": {
+      "options": {
+        "0": "Disattivato",
+        "1": "Indicazione di stato predefinita"
+      }
+    },
+    "mode": {
+      "options": {
+        "sos": "Pulsante SOS",
+        "pet": "Localizzatore animali",
+        "asset": "Localizzatore oggetti"
+      }
+    },
+    "battery_save_mode": {
+      "options": {
+        "0": "Disattivato",
+        "1": "Attivato"
+      }
+    },
+    "zones": {
+      "options": {
+        "safe_zone_1": "Zona sicura 1",
+        "safe_zone_2": "Zona sicura 2"
+      }
+    },
+    "schedules": {
+      "options": {
+        "dnd": "Non disturbare",
+        "alarm_1": "Sveglia 1",
+        "alarm_2": "Sveglia 2",
+        "alarm_3": "Sveglia 3"
+      }
+    },
+    "weekdays": {
+      "options": {
+        "sun": "Domenica",
+        "mon": "Lunedì",
+        "tue": "Martedì",
+        "wed": "Mercoledì",
+        "thu": "Giovedì",
+        "fri": "Venerdì",
+        "sat": "Sabato"
       }
     }
   },

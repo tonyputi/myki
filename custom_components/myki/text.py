@@ -31,6 +31,7 @@ class MykiTrackerDetail(MykiEntity, TextEntity):
     """Nickname or SIM number from the app's paired tracker-details write."""
 
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
     _attr_native_min = 1
 
     def __init__(self, coordinator: MykiCoordinator, watch_id: str, key: str) -> None:
@@ -66,6 +67,7 @@ class MykiContact(MykiEntity, TextEntity):
     """One app-visible contact slot; no optimistic or restored phone numbers."""
 
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
     _attr_native_min = 0
     _attr_native_max = 32
     _attr_pattern = r"\+?[0-9]*"

@@ -68,7 +68,8 @@ def _mock_cloud(aioclient_mock: AiohttpClientMocker) -> None:
     )
 
 
-async def _setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> MockConfigEntry:
+async def _setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, *, legacy_controls=True) -> MockConfigEntry:
+    """Existing control tests explicitly opt in to the disabled compatibility entities."""
     _mock_cloud(aioclient_mock)
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -78,6 +79,13 @@ async def _setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> Mo
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+    if legacy_controls:
+        registry = er.async_get(hass)
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+            if entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION:
+                registry.async_update_entity(entity.entity_id, disabled_by=None)
+        await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
     return entry
 
 
@@ -175,17 +183,15 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("watch/find" in u for u in urls)
 
-    # volume sliders reflect the payload and can be set
-    assert hass.states.get(f"number.{NICK.lower()}_ring_volume").state == "4"
-    assert hass.states.get(f"number.{NICK.lower()}_call_volume").state == "6"
-    await hass.services.async_call(
-        "number",
-        "set_value",
-        {"entity_id": f"number.{NICK.lower()}_call_volume", "value": 5},
-        blocking=True,
-    )
-    urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
-    assert any("callvolset" in u and "volume=5" in u for u in urls)
+    # Tracker settings are edited in Configure, not duplicated on the device page.
+    registry = er.async_get(hass)
+    for control in ("ring_volume", "call_volume"):
+        entity_id = f"number.{NICK.lower()}_{control}"
+        assert hass.states.get(entity_id) is None
+        assert registry.async_get(entity_id).disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert hass.states.get(f"switch.{NICK.lower()}_flashlight") is not None
+    assert entry.minor_version == 2
+    assert not any("callvolset" in str(url) for _, url, *_ in aioclient_mock.mock_calls)
 
 
 async def test_rotated_events_produce_individual_state_changes(hass: HomeAssistant, aioclient_mock) -> None:
@@ -345,12 +351,13 @@ async def test_volume_displays_cloud_readback(hass: HomeAssistant, aioclient_moc
     cloud_data["commands"][key] = "2"
     with (
         patch.object(entry.runtime_data.client, method) as write,
-        patch.object(entry.runtime_data.client, "app_data", return_value=cloud_data),
+        patch.object(entry.runtime_data.client, "app_data", side_effect=[deepcopy(APP_DATA["data"]), cloud_data]),
     ):
-        await hass.services.async_call(
-            "number", "set_value",
-            {"entity_id": f"number.{NICK.lower()}_{control}", "value": 3}, blocking=True,
-        )
+        with pytest.raises(HomeAssistantError, match="not confirmed"):
+            await hass.services.async_call(
+                "number", "set_value",
+                {"entity_id": f"number.{NICK.lower()}_{control}", "value": 3}, blocking=True,
+            )
         await hass.async_block_till_done()
         write.assert_awaited_once_with(WATCH_ID, 3)
     assert hass.states.get(f"number.{NICK.lower()}_{control}").state == "2"

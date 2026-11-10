@@ -32,6 +32,7 @@ class MykiSettingSwitch(MykiEntity, SwitchEntity):
         self._attr_unique_id = f"{watch_id}_{self._attr_translation_key}"
         if key != "flashlight":
             self._attr_entity_category = EntityCategory.CONFIG
+            self._attr_entity_registry_enabled_default = False
 
     @property
     def is_on(self) -> bool | None:

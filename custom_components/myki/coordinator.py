@@ -1,6 +1,7 @@
 """DataUpdateCoordinator polling every tracker on the MyKi account."""
 
 from asyncio import Lock
+from copy import deepcopy
 from datetime import timedelta
 import logging
 from typing import Any
@@ -56,6 +57,37 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
                 events = []
             data[watch_id] = {"watch": w, "app": app, "events": events}
         return data
+
+    async def async_settings_snapshot(self, watch_id: str) -> dict[str, Any]:
+        """Read a form snapshot under the same lock as polling and commands."""
+        async with self._contact_lock:
+            if watch_id not in self.data:
+                raise MykiError("tracker is no longer on this account")
+            app = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, app)
+            return deepcopy(app)
+
+    async def async_set_volume(self, watch_id: str, key: str, value: float, expected: int) -> None:
+        """Set volume with the same stale/offline/readback guards as other settings."""
+        maximum = {"volume_ring": 4, "volume_call": 6}.get(key)
+        if maximum is None or isinstance(value, bool) or not isinstance(value, (int, float)) or value not in range(1, maximum + 1):
+            raise MykiError("invalid volume")
+        async with self._contact_lock:
+            app = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, app)
+            current = scalar_setting(app, key)
+            if current not in {str(i) for i in range(1, maximum + 1)} or int(current) != expected:
+                raise MykiError("volume changed in MyKi; refresh and try again")
+            if int(current) == value:
+                return
+            if str((app.get("settings") or {}).get("online")) != "1":
+                raise MykiError("tracker is offline; volume was not changed")
+            write = self.client.set_ring_volume if key == "volume_ring" else self.client.set_call_volume
+            await write(watch_id, int(value))
+            confirmed = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, confirmed)
+            if scalar_setting(confirmed, key) != str(int(value)):
+                raise MykiError("volume update was not confirmed by MyKi; refresh before retrying")
 
     async def async_set_contact(self, watch_id: str, slot: str, value: str, expected: str) -> None:
         """Read/modify/write one slot; reject stale edits and verify cloud readback."""

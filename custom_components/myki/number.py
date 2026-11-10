@@ -36,6 +36,7 @@ async def async_setup_entry(
 
 class MykiVolumeEntity(MykiEntity, NumberEntity):
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
     _attr_mode = NumberMode.SLIDER
     _attr_native_step = 1
 
@@ -56,10 +57,9 @@ class MykiRingVolume(MykiVolumeEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         try:
-            await self.coordinator.client.set_ring_volume(self.watch_id, int(value))
+            await self.coordinator.async_set_volume(self.watch_id, self._volume_key, value, self.native_value)
         except MykiError as err:
             raise HomeAssistantError(f"MyKi ring volume failed: {err}") from err
-        await self.coordinator.async_request_refresh()
 
 
 class MykiCallVolume(MykiVolumeEntity):
@@ -70,7 +70,6 @@ class MykiCallVolume(MykiVolumeEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         try:
-            await self.coordinator.client.set_call_volume(self.watch_id, int(value))
+            await self.coordinator.async_set_volume(self.watch_id, self._volume_key, value, self.native_value)
         except MykiError as err:
             raise HomeAssistantError(f"MyKi call volume failed: {err}") from err
-        await self.coordinator.async_request_refresh()

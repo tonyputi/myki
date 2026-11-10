@@ -12,6 +12,26 @@ from .coordinator import MykiConfigEntry, MykiCoordinator
 PLATFORMS = ("binary_sensor", "button", "device_tracker", "event", "number", "select", "sensor", "switch", "text")
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: MykiConfigEntry) -> bool:
+    """Move old settings controls out of the device page without deleting IDs."""
+    if entry.version != 1:
+        return False
+    if entry.minor_version < 2:
+        registry = er.async_get(hass)
+        suffixes = {
+            "number": ("_volume_ring", "_volume_call"),
+            "select": ("_ring_mode", "_ringtone", "_mode"),
+            "switch": ("_status_led", "_battery_save_mode"),
+            "text": ("_tracker_nickname", "_sim_phone", *(f"_sos_{i}" for i in range(1, 4)), *(f"_whitelist_{i}" for i in range(1, 8))),
+        }
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+            if entity.platform == "myki" and entity.unique_id.endswith(suffixes.get(entity.domain, ())):
+                if entity.disabled_by is None:
+                    registry.async_update_entity(entity.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION)
+        hass.config_entries.async_update_entry(entry, minor_version=2)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: MykiConfigEntry) -> None:
     client = MykiClient(
         async_get_clientsession(hass), entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD]
