@@ -15,7 +15,8 @@ def scalar_setting(app: dict, key: str) -> str:
     """Match the app's settings/commands locations, not a local preference."""
     section = "settings" if key in ("mode", "battery_save_mode") else "commands"
     field = "led" if key == "flashlight" else key
-    return str((app.get(section) or {}).get(field))
+    # The app initializes ringtone to Classic and overrides it only when supplied.
+    return str((app.get(section) or {}).get(field, "0" if key == "ringtone" else None))
 
 
 def validate_zone(value: dict) -> dict:

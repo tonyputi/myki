@@ -683,6 +683,33 @@ async def test_personalization_tracks_cloud(hass, aioclient_mock, key, value, en
     assert hass.states.get(f"number.{NICK.lower()}_call_volume").state == "6"
 
 
+@pytest.mark.parametrize("option,value", [("classic", "0"), ("playtime", "1"), ("twinkle", "2")])
+async def test_missing_ringtone_uses_app_default_and_allows_edit(hass, aioclient_mock, option, value):
+    entry, cloud = await _setup_personalization(hass, aioclient_mock)
+    del cloud["commands"]["ringtone"]
+    with patch.object(entry.runtime_data.client, "set_personalization") as write:
+        entry.runtime_data._publish_contacts(WATCH_ID, deepcopy(cloud))
+        await hass.async_block_till_done()
+        assert hass.states.get("select.testkid_ringtone").state == "classic"
+        write.assert_not_awaited()
+
+        async def update(watch_id, key, requested):
+            cloud["commands"][key] = requested
+
+        write.side_effect = update
+        with patch.object(entry.runtime_data.client, "app_data", side_effect=lambda _: deepcopy(cloud)):
+            await hass.services.async_call("select", "select_option", {
+                "entity_id": "select.testkid_ringtone", "option": option,
+            }, blocking=True)
+        if option == "classic":
+            write.assert_not_awaited()
+            assert "ringtone" not in cloud["commands"]
+        else:
+            write.assert_awaited_once_with(WATCH_ID, "ringtone", value)
+        assert hass.states.get("select.testkid_ringtone").state == option
+        assert entry.options == {}
+
+
 @pytest.mark.parametrize("key,entity", [
     ("profile", "select.testkid_ring_mode"),
     ("ringtone", "select.testkid_ringtone"),
@@ -756,7 +783,7 @@ async def test_personalization_failures(hass, aioclient_mock, key, value, expect
     ):
         with pytest.raises(MykiError):
             await entry.runtime_data.async_set_personalization(WATCH_ID, key, value, expected)
-        if failure in ("rejected", "unconfirmed", "readback_failed"):
+        if failure in ("rejected", "unconfirmed", "readback_failed") or (failure == "missing" and key == "ringtone"):
             write.assert_awaited_once_with(WATCH_ID, key, value)
         else:
             write.assert_not_awaited()

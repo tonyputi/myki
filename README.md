@@ -76,7 +76,7 @@ MyKi cloud is the source of truth for tracker settings and contacts; HA does not
 
 ## Shared personalization
 
-Ring mode, ringtone and status LED read the same global command-state fields as the MyKi app. Ring mode offers sound and vibration, sound only, vibration only and mute; ringtone offers Classic, Playtime and Twinkle. No selection is saved in HA options. App changes appear on the next successful refresh, and existing volume entities are unchanged.
+Ring mode, ringtone and status LED read the same global command-state fields as the MyKi app. Ring mode offers sound and vibration, sound only, vibration only and mute; ringtone offers Classic, Playtime and Twinkle. When the cloud omits the ringtone field, HA displays Classic, matching the app's initial value; a present but invalid value remains unknown. This fallback does not write a setting to the tracker. No selection is saved in HA options. App changes appear on the next successful refresh, and existing volume entities are unchanged.
 
 Each change reads the current cloud state, rejects a stale edit or offline tracker, writes only the selected setting and requires matching cloud readback. Missing/unsupported values display `unknown` and are not silently replaced. No optimistic state, automatic retry or rollback is used; after an uncertain result, refresh and inspect the app before retrying. Local commands and polling are serialized, but the vendor API has no conditional writes to prevent simultaneous app edits atomically.
 
