@@ -41,22 +41,22 @@
     "device_tracker": {},
     "sensor": {
       "safe_zone_1": {
-        "name": "Safe zone 1"
+        "name": "Zones: Safe zone 1"
       },
       "safe_zone_2": {
-        "name": "Safe zone 2"
+        "name": "Zones: Safe zone 2"
       },
       "dnd": {
-        "name": "Do not disturb"
+        "name": "Schedules: Do not disturb"
       },
       "alarm_1": {
-        "name": "Alarm 1"
+        "name": "Schedules: Alarm 1"
       },
       "alarm_2": {
-        "name": "Alarm 2"
+        "name": "Schedules: Alarm 2"
       },
       "alarm_3": {
-        "name": "Alarm 3"
+        "name": "Schedules: Alarm 3"
       },
       "zone": {
         "name": "Zone",
@@ -71,27 +71,27 @@
         "name": "Steps today"
       },
       "gsm_signal": {
-        "name": "GSM signal"
+        "name": "Reception: GSM signal"
       },
       "rtt_seconds_left": {
-        "name": "Live tracking seconds left"
+        "name": "Tracking: Live tracking seconds left"
       },
       "gps_satellites": {
-        "name": "GPS satellites"
+        "name": "Reception: GPS satellites"
       },
       "wifi_networks": {
-        "name": "WiFi networks"
+        "name": "Reception: WiFi networks"
       },
       "base_stations": {
-        "name": "Cell towers"
+        "name": "Reception: Cell towers"
       }
     },
     "binary_sensor": {
       "online": {
-        "name": "Online"
+        "name": "Cloud: Online"
       },
       "fresh_data": {
-        "name": "Fresh data"
+        "name": "Cloud: Fresh data"
       }
     },
     "button": {
@@ -104,10 +104,10 @@
     },
     "number": {
       "ring_volume": {
-        "name": "Ring volume"
+        "name": "Audio: Ring volume"
       },
       "call_volume": {
-        "name": "Call volume"
+        "name": "Audio: Call volume"
       }
     },
     "event": {
@@ -117,7 +117,7 @@
     },
     "select": {
       "mode": {
-        "name": "Operating mode",
+        "name": "Device: Operating mode",
         "state": {
           "sos": "SOS button",
           "pet": "Pet tracker",
@@ -125,7 +125,7 @@
         }
       },
       "ring_mode": {
-        "name": "Ring mode",
+        "name": "Audio: Ring mode",
         "state": {
           "sound_and_vibration": "Sound and vibration",
           "sound": "Sound only",
@@ -134,7 +134,7 @@
         }
       },
       "ringtone": {
-        "name": "Ringtone",
+        "name": "Audio: Ringtone",
         "state": {
           "classic": "Classic",
           "playtime": "Playtime",
@@ -144,51 +144,51 @@
     },
     "switch": {
       "battery_save_mode": {
-        "name": "Battery save"
+        "name": "Device: Battery save"
       },
       "flashlight": {
-        "name": "Flashlight"
+        "name": "Lights: Flashlight"
       },
       "status_led": {
-        "name": "Status LED"
+        "name": "Lights: Status LED"
       }
     },
     "text": {
       "tracker_nickname": {
-        "name": "Tracker nickname"
+        "name": "Device: Tracker nickname"
       },
       "sim_phone": {
-        "name": "SIM phone number"
+        "name": "Device: SIM phone number"
       },
       "sos_1": {
-        "name": "SOS 1"
+        "name": "Contacts: SOS 1"
       },
       "sos_2": {
-        "name": "SOS 2"
+        "name": "Contacts: SOS 2"
       },
       "sos_3": {
-        "name": "SOS 3"
+        "name": "Contacts: SOS 3"
       },
       "whitelist_1": {
-        "name": "Whitelist 1"
+        "name": "Contacts: Whitelist 1"
       },
       "whitelist_2": {
-        "name": "Whitelist 2"
+        "name": "Contacts: Whitelist 2"
       },
       "whitelist_3": {
-        "name": "Whitelist 3"
+        "name": "Contacts: Whitelist 3"
       },
       "whitelist_4": {
-        "name": "Whitelist 4"
+        "name": "Contacts: Whitelist 4"
       },
       "whitelist_5": {
-        "name": "Whitelist 5"
+        "name": "Contacts: Whitelist 5"
       },
       "whitelist_6": {
-        "name": "Whitelist 6"
+        "name": "Contacts: Whitelist 6"
       },
       "whitelist_7": {
-        "name": "Whitelist 7"
+        "name": "Contacts: Whitelist 7"
       }
     }
   },

@@ -41,22 +41,22 @@
     "device_tracker": {},
     "sensor": {
       "safe_zone_1": {
-        "name": "Zona sicura 1"
+        "name": "Zone: Zona sicura 1"
       },
       "safe_zone_2": {
-        "name": "Zona sicura 2"
+        "name": "Zone: Zona sicura 2"
       },
       "dnd": {
-        "name": "Non disturbare"
+        "name": "Orari: Non disturbare"
       },
       "alarm_1": {
-        "name": "Sveglia 1"
+        "name": "Orari: Sveglia 1"
       },
       "alarm_2": {
-        "name": "Sveglia 2"
+        "name": "Orari: Sveglia 2"
       },
       "alarm_3": {
-        "name": "Sveglia 3"
+        "name": "Orari: Sveglia 3"
       },
       "zone": {
         "name": "Zona",
@@ -71,27 +71,27 @@
         "name": "Passi oggi"
       },
       "gsm_signal": {
-        "name": "Segnale GSM"
+        "name": "Ricezione: Segnale GSM"
       },
       "rtt_seconds_left": {
-        "name": "Secondi tracking live rimasti"
+        "name": "Tracciamento: Secondi tracking live rimasti"
       },
       "gps_satellites": {
-        "name": "Satelliti GPS"
+        "name": "Ricezione: Satelliti GPS"
       },
       "wifi_networks": {
-        "name": "Reti WiFi"
+        "name": "Ricezione: Reti WiFi"
       },
       "base_stations": {
-        "name": "Ripetitori cellulari"
+        "name": "Ricezione: Ripetitori cellulari"
       }
     },
     "binary_sensor": {
       "online": {
-        "name": "Online"
+        "name": "Cloud: Online"
       },
       "fresh_data": {
-        "name": "Dati freschi"
+        "name": "Cloud: Dati freschi"
       }
     },
     "button": {
@@ -104,10 +104,10 @@
     },
     "number": {
       "ring_volume": {
-        "name": "Volume suoneria"
+        "name": "Audio: Volume suoneria"
       },
       "call_volume": {
-        "name": "Volume chiamata"
+        "name": "Audio: Volume chiamata"
       }
     },
     "event": {
@@ -117,7 +117,7 @@
     },
     "select": {
       "mode": {
-        "name": "Modalità dispositivo",
+        "name": "Dispositivo: Modalità dispositivo",
         "state": {
           "sos": "Pulsante SOS",
           "pet": "Localizzatore animali",
@@ -125,7 +125,7 @@
         }
       },
       "ring_mode": {
-        "name": "Modalità suoneria",
+        "name": "Audio: Modalità suoneria",
         "state": {
           "sound_and_vibration": "Audio e vibrazione",
           "sound": "Solo audio",
@@ -134,7 +134,7 @@
         }
       },
       "ringtone": {
-        "name": "Suoneria",
+        "name": "Audio: Suoneria",
         "state": {
           "classic": "Classic",
           "playtime": "Playtime",
@@ -144,51 +144,51 @@
     },
     "switch": {
       "battery_save_mode": {
-        "name": "Risparmio batteria"
+        "name": "Dispositivo: Risparmio batteria"
       },
       "flashlight": {
-        "name": "Torcia"
+        "name": "Luci: Torcia"
       },
       "status_led": {
-        "name": "LED di stato"
+        "name": "Luci: LED di stato"
       }
     },
     "text": {
       "tracker_nickname": {
-        "name": "Nome tracker"
+        "name": "Dispositivo: Nome tracker"
       },
       "sim_phone": {
-        "name": "Numero SIM"
+        "name": "Dispositivo: Numero SIM"
       },
       "sos_1": {
-        "name": "SOS 1"
+        "name": "Contatti: SOS 1"
       },
       "sos_2": {
-        "name": "SOS 2"
+        "name": "Contatti: SOS 2"
       },
       "sos_3": {
-        "name": "SOS 3"
+        "name": "Contatti: SOS 3"
       },
       "whitelist_1": {
-        "name": "Whitelist 1"
+        "name": "Contatti: Whitelist 1"
       },
       "whitelist_2": {
-        "name": "Whitelist 2"
+        "name": "Contatti: Whitelist 2"
       },
       "whitelist_3": {
-        "name": "Whitelist 3"
+        "name": "Contatti: Whitelist 3"
       },
       "whitelist_4": {
-        "name": "Whitelist 4"
+        "name": "Contatti: Whitelist 4"
       },
       "whitelist_5": {
-        "name": "Whitelist 5"
+        "name": "Contatti: Whitelist 5"
       },
       "whitelist_6": {
-        "name": "Whitelist 6"
+        "name": "Contatti: Whitelist 6"
       },
       "whitelist_7": {
-        "name": "Whitelist 7"
+        "name": "Contatti: Whitelist 7"
       }
     }
   },

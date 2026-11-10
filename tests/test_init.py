@@ -651,6 +651,35 @@ async def test_failed_contact_readback_is_not_reported_as_success(hass: HomeAssi
 
 
 
+async def test_grouped_names_preserve_entity_ids_and_custom_names(hass, aioclient_mock):
+    """Display groups must not rename existing IDs or user-customized entities."""
+    entry = await _setup(hass, aioclient_mock)
+    grouped = {
+        "number.testkid_ring_volume": "Audio: Ring volume",
+        "number.testkid_call_volume": "Audio: Call volume",
+        "select.testkid_ring_mode": "Audio: Ring mode",
+        "select.testkid_ringtone": "Audio: Ringtone",
+        "text.testkid_sos_1": "Contacts: SOS 1",
+        "text.testkid_whitelist_1": "Contacts: Whitelist 1",
+        "switch.testkid_status_led": "Lights: Status LED",
+        "sensor.testkid_cell_towers": "Reception: Cell towers",
+        "sensor.testkid_gps_satellites": "Reception: GPS satellites",
+        "sensor.testkid_wifi_networks": "Reception: WiFi networks",
+    }
+    for entity_id, label in grouped.items():
+        state = hass.states.get(entity_id)
+        assert state is not None
+        assert state.attributes["friendly_name"] == f"{NICK} {label}"
+    registry = er.async_get(hass)
+    entity_id = "switch.testkid_status_led"
+    registry.async_update_entity(entity_id, name="My custom light")
+    await hass.async_block_till_done()
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert registry.async_get(entity_id).name == "My custom light"
+    assert hass.states.get(entity_id).attributes["friendly_name"] == f"{NICK} My custom light"
+
+
 async def _setup_personalization(hass, aioclient_mock):
     entry = await _setup(hass, aioclient_mock)
     cloud = deepcopy(APP_DATA["data"])
