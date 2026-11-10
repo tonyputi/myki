@@ -156,7 +156,6 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
-        options={"call_me_number": "+15555550100"},
         unique_id="test@example.com",
     )
     entry.add_to_hass(hass)
@@ -164,24 +163,17 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     await hass.async_block_till_done()
     aioclient_mock.get(f"{BASE_URL}/watch/find?id={WATCH_ID}", json={"isok": True})
     aioclient_mock.get(
-        f"{BASE_URL}/watch/call?id={WATCH_ID}&phone=0015555550100", json={"isok": True}
-    )
-    aioclient_mock.get(
         f"{BASE_URL}/watch/callvolset?id={WATCH_ID}&volume=5", json={"isok": True}
     )
-    # buttons exist; call_me available only with the option set
     assert hass.states.get(f"button.{NICK.lower()}_find").state == "unknown"
-    assert hass.states.get(f"button.{NICK.lower()}_call_me").state == "unknown"
+    assert hass.states.get(f"button.{NICK.lower()}_call_me") is None
+    assert hass.states.get(f"select.{NICK.lower()}_call_contact") is None
 
     await hass.services.async_call(
         "button", "press", {"entity_id": f"button.{NICK.lower()}_find"}, blocking=True
     )
-    await hass.services.async_call(
-        "button", "press", {"entity_id": f"button.{NICK.lower()}_call_me"}, blocking=True
-    )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("watch/find" in u for u in urls)
-    assert any("watch/call" in u and "phone=0015555550100" in u for u in urls)
 
     # volume sliders reflect the payload and can be set
     assert hass.states.get(f"number.{NICK.lower()}_ring_volume").state == "4"
@@ -317,12 +309,10 @@ async def test_invalid_safe_zone_is_unknown_and_recovers(hass: HomeAssistant, ai
 
 
 @pytest.mark.parametrize("button,method", [
-    ("find", "find"), ("call_me", "make_call"), ("live_tracking", "start_rtt"),
+    ("find", "find"), ("live_tracking", "start_rtt"),
 ])
 async def test_failed_button_is_reported(hass: HomeAssistant, aioclient_mock, button, method):
     entry = await _setup(hass, aioclient_mock)
-    hass.config_entries.async_update_entry(entry, options={"call_me_number": "+15555550100"})
-    await hass.async_block_till_done()
     with patch.object(entry.runtime_data.client, method, side_effect=MykiError("offline")):
         with pytest.raises(HomeAssistantError):
             await hass.services.async_call(
@@ -533,38 +523,59 @@ async def test_call_rejects_empty_or_unshared_contacts(hass: HomeAssistant, aioc
         call.assert_not_awaited()
 
 
-async def test_selected_contact_persists_without_copying_number(hass: HomeAssistant, aioclient_mock):
-    entry = await _setup(hass, aioclient_mock)
-    await hass.services.async_call("select", "select_option", {
-        "entity_id": f"select.{NICK.lower()}_call_contact", "option": "sos_1",
-    }, blocking=True)
-    await hass.async_block_till_done()
-    assert entry.options["call_contacts"] == {WATCH_ID: "sos_1"}
-    assert hass.states.get(f"select.{NICK.lower()}_call_contact").state == "sos_1"
-    with patch.object(entry.runtime_data.client, "make_call") as call:
-        await hass.services.async_call("button", "press", {
-            "entity_id": f"button.{NICK.lower()}_call_me",
-        }, blocking=True)
-        call.assert_awaited_once_with(WATCH_ID, "0015555550100")
-
-
-@pytest.mark.parametrize("legacy,selected", [("+15555550100", "sos_1"), ("+15555550109", "none")])
-async def test_legacy_call_number_migrates_only_existing_shared_contact(hass: HomeAssistant, aioclient_mock, legacy, selected):
+@pytest.mark.parametrize("retired_options", [
+    {},
+    {"call_me_number": "+15555550100"},
+    {"call_contacts": {WATCH_ID: "sos_1"}},
+    {"call_me_number": "+15555550109", "call_contacts": {WATCH_ID: "sos_2"}},
+])
+async def test_retired_call_controls_removed_without_cloud_writes(hass: HomeAssistant, aioclient_mock, retired_options):
     _mock_cloud(aioclient_mock)
-    entry = MockConfigEntry(domain=DOMAIN, data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
-                            options={"call_me_number": legacy, "scan_interval": 120})
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
+        options={"scan_interval": 120, **retired_options},
+    )
     entry.add_to_hass(hass)
-    with patch("custom_components.myki.api.MykiClient.set_sos_number") as write:
+    other_entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="other")
+    other_entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    retired = [
+        registry.async_get_or_create(
+            domain, DOMAIN, f"{wid}_{suffix}", config_entry=entry,
+            suggested_object_id=f"custom_{wid}_{suffix}", disabled_by=er.RegistryEntryDisabler.USER,
+        )
+        for wid in (WATCH_ID, "removed-tracker")
+        for domain, suffix in (("button", "call_me"), ("select", "call_contact"))
+    ]
+    other = registry.async_get_or_create(
+        "select", DOMAIN, "other_call_contact", config_entry=other_entry,
+    )
+    contact = registry.async_get_or_create(
+        "text", DOMAIN, f"{WATCH_ID}_sos_1", config_entry=entry,
+    )
+    registry.async_update_entity(contact.entity_id, name="My SOS contact")
+    with (
+        patch("custom_components.myki.api.MykiClient.set_sos_number") as sos,
+        patch("custom_components.myki.api.MykiClient.set_whitelist") as whitelist,
+        patch("custom_components.myki.api.MykiClient.make_call") as call,
+    ):
         await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
-        write.assert_not_awaited()
-    assert "call_me_number" not in entry.options
-    assert entry.options["scan_interval"] == 120
-    assert entry.options.get("call_contacts", {}).get(WATCH_ID, "none") == selected
-    assert hass.states.get(f"select.{NICK.lower()}_call_contact").state == selected
-    if selected == "none":
-        assert hass.states.get(f"button.{NICK.lower()}_call_me").state == "unavailable"
-
+        assert entry.state is ConfigEntryState.LOADED
+        assert entry.options == {"scan_interval": 120}
+        assert all(registry.async_get(entity.entity_id) is None for entity in retired)
+        assert registry.async_get(other.entity_id) is other
+        assert registry.async_get(contact.entity_id).name == "My SOS contact"
+        assert entry.runtime_data.data[WATCH_ID]["app"]["commands"] == APP_DATA["data"]["commands"]
+        assert not any(state.domain == "select" for state in hass.states.async_all())
+        assert hass.states.get(f"button.{NICK.lower()}_call_me") is None
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        assert entry.options == {"scan_interval": 120}
+        assert registry.async_get(contact.entity_id).name == "My SOS contact"
+        sos.assert_not_awaited()
+        whitelist.assert_not_awaited()
+        call.assert_not_awaited()
 
 
 async def test_contact_writes_are_serialized_without_losing_siblings(hass: HomeAssistant, aioclient_mock):

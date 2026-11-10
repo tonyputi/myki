@@ -80,9 +80,6 @@
       "find": {
         "name": "Find"
       },
-      "call_me": {
-        "name": "Call me"
-      },
       "live_tracking": {
         "name": "Live tracking"
       }
@@ -130,24 +127,6 @@
       },
       "whitelist_7": {
         "name": "Whitelist 7"
-      }
-    },
-    "select": {
-      "call_contact": {
-        "name": "Call contact",
-        "state": {
-          "none": "None",
-          "sos_1": "SOS 1",
-          "sos_2": "SOS 2",
-          "sos_3": "SOS 3",
-          "whitelist_1": "Whitelist 1",
-          "whitelist_2": "Whitelist 2",
-          "whitelist_3": "Whitelist 3",
-          "whitelist_4": "Whitelist 4",
-          "whitelist_5": "Whitelist 5",
-          "whitelist_6": "Whitelist 6",
-          "whitelist_7": "Whitelist 7"
-        }
       }
     }
   },
