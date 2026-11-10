@@ -9,7 +9,7 @@ from .api import MykiClient
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 from .coordinator import MykiConfigEntry, MykiCoordinator
 
-PLATFORMS = ("binary_sensor", "button", "device_tracker", "event", "number", "sensor", "text")
+PLATFORMS = ("binary_sensor", "button", "device_tracker", "event", "number", "select", "sensor", "switch", "text")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MykiConfigEntry) -> None:

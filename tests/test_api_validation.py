@@ -81,6 +81,32 @@ async def test_contact_endpoints_preserve_empty_and_encoded_values(client, aiocl
     assert len(aioclient_mock.mock_calls) == 2
 
 
+@pytest.mark.parametrize("key,value,parameter", [
+    ("profile", str(value), "profile") for value in (1, 2, 3, 4)
+] + [
+    ("ringtone", str(value), "ringtone") for value in (0, 1, 2)
+] + [("led", "0", "status"), ("led", "1", "status")])
+async def test_personalization_endpoints(client, aioclient_mock, key, value, parameter):
+    aioclient_mock.get(
+        f"{BASE_URL}/watch/{key}?id=test%26tracker&{parameter}={value}",
+        json={"isok": True},
+    )
+    await client.set_personalization("test&tracker", key, value)
+    assert len(aioclient_mock.mock_calls) == 1
+
+
+@pytest.mark.parametrize("key,value", [
+    ("profile", "0"), ("profile", "5"), ("ringtone", "3"), ("led", "2"),
+    ("unknown", "1"), ("../reset", "1"), ("profile", "1&extra=1"),
+    ("profile", 1), ("profile", None), ("profile", []), ([], "1"),
+])
+async def test_invalid_personalization_never_reaches_cloud(client, aioclient_mock, key, value):
+    with pytest.raises(MykiError, match="invalid personalization"):
+        await client.set_personalization("test-tracker", key, value)
+    assert not aioclient_mock.mock_calls
+
+
+
 @pytest.mark.parametrize("slot,phone", [(0, "123"), (4, "123"), (1, "123&x=1"), (2, "+123")])
 async def test_invalid_sos_write_makes_no_request(client, aioclient_mock, slot, phone):
     with pytest.raises(MykiError):

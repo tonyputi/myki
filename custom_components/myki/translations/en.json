@@ -97,6 +97,30 @@
         "name": "Events"
       }
     },
+    "select": {
+      "ring_mode": {
+        "name": "Ring mode",
+        "state": {
+          "sound_and_vibration": "Sound and vibration",
+          "sound": "Sound only",
+          "vibration": "Vibration only",
+          "mute": "Mute"
+        }
+      },
+      "ringtone": {
+        "name": "Ringtone",
+        "state": {
+          "classic": "Classic",
+          "playtime": "Playtime",
+          "twinkle": "Twinkle"
+        }
+      }
+    },
+    "switch": {
+      "status_led": {
+        "name": "Status LED"
+      }
+    },
     "text": {
       "sos_1": {
         "name": "SOS 1"

@@ -6,6 +6,8 @@ from urllib.parse import quote, urlencode
 
 import aiohttp
 
+from .const import PERSONALIZATION_OPTIONS
+
 BASE_URL = "https://spot.myki.pet:6020/api"
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
 
@@ -107,6 +109,16 @@ class MykiClient:
         query = {"id": watch_id, "whitelist": group}
         query.update({f"phone{i}": phone for i, phone in enumerate(phones, start=1)})
         await self._get("/watch/whitelist?" + urlencode(query))
+
+    async def set_personalization(self, watch_id: str, key: str, value: str) -> None:
+        """Write an app-supported global setting, never a zone profile or LED party."""
+        if (
+            not isinstance(key, str) or key not in PERSONALIZATION_OPTIONS
+            or not isinstance(value, str) or value not in PERSONALIZATION_OPTIONS[key]
+        ):
+            raise MykiError("invalid personalization setting")
+        parameter = "status" if key == "led" else key
+        await self._get(f"/watch/{key}?" + urlencode({"id": watch_id, parameter: value}))
 
     async def start_rtt(self, watch_id: str, duration_minutes: int = 10) -> None:
         """Start real-time tracking (device reports at high frequency)."""
