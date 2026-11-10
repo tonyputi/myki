@@ -10,8 +10,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import PERSONALIZATION_OPTIONS
 from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
+from .settings import DISABLED_PERIOD, WEEKDAYS, read_group
 from .utils import (
     AWAY,
     distance_meters,
@@ -41,6 +43,10 @@ async def async_setup_entry(
             MykiGpsSatellitesSensor(coordinator, wid),
             MykiWifiNetworksSensor(coordinator, wid),
             MykiBaseStationsSensor(coordinator, wid),
+            MykiSettingSensor(coordinator, wid, "safe_zone_1"),
+            MykiSettingSensor(coordinator, wid, "safe_zone_2"),
+            MykiSettingSensor(coordinator, wid, "silencetime", 0),
+            *(MykiSettingSensor(coordinator, wid, "remind", i) for i in range(3)),
         )
     )
 
@@ -74,6 +80,47 @@ class MykiZoneSensor(MykiEntity, SensorEntity):
                     distance_meters(pos[0], pos[1], zone["lat"], zone["lon"])
                 )
         return attrs
+
+
+class MykiSettingSensor(MykiEntity, SensorEntity):
+    """Read shared zone/schedule configuration edited through structured actions."""
+
+    def __init__(self, coordinator: MykiCoordinator, watch_id: str, key: str, index: int | None = None) -> None:
+        super().__init__(coordinator, watch_id)
+        self.key, self.index = key, index
+        suffix = f"alarm_{index + 1}" if key == "remind" else "dnd" if key == "silencetime" else key
+        self._attr_unique_id = f"{watch_id}_{suffix}"
+        self._attr_translation_key = suffix
+
+    @property
+    def native_value(self) -> str | None:
+        try:
+            value = read_group(self.app_data, self.key)
+        except ValueError:
+            return None
+        if self.key.startswith("safe_zone_"):
+            return value.get("name")
+        return value[self.index][:5] if self.key == "remind" else value[0]
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        try:
+            value = read_group(self.app_data, self.key)
+        except ValueError:
+            return {}
+        if self.key.startswith("safe_zone_"):
+            if not value:
+                return {}
+            return {
+                "latitude": float(value["lat"]), "longitude": float(value["lon"]),
+                "radius": float(value["radius"]) * 1000,
+                "enabled": str(value["active"]) == "1",
+                "ring_mode": PERSONALIZATION_OPTIONS["profile"][str(value["profile"])],
+            }
+        if self.key == "remind":
+            alarm = value[self.index]
+            return {"enabled": alarm[6] == "1", "weekdays": [day for day, bit in zip(WEEKDAYS, alarm[10:17], strict=True) if bit == "1"]}
+        return {"enabled": value[0] != DISABLED_PERIOD, "periods": value}
 
 
 class MykiBatterySensor(MykiEntity, SensorEntity):

@@ -14,7 +14,7 @@ ROOT = Path(__file__).parent.parent
 
 async def test_readme_yaml_examples(hass):
     blocks = re.findall(r"```yaml\n(.*?)```", (ROOT / "README.md").read_text(), re.DOTALL)
-    assert len(blocks) == 3
+    assert len(blocks) == 6
     for block in blocks:
         data = yaml.safe_load(block)
         if "alias" in data:

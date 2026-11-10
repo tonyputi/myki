@@ -40,6 +40,24 @@
   "entity": {
     "device_tracker": {},
     "sensor": {
+      "safe_zone_1": {
+        "name": "Zona sicura 1"
+      },
+      "safe_zone_2": {
+        "name": "Zona sicura 2"
+      },
+      "dnd": {
+        "name": "Non disturbare"
+      },
+      "alarm_1": {
+        "name": "Sveglia 1"
+      },
+      "alarm_2": {
+        "name": "Sveglia 2"
+      },
+      "alarm_3": {
+        "name": "Sveglia 3"
+      },
       "zone": {
         "name": "Zona",
         "state": {
@@ -98,6 +116,14 @@
       }
     },
     "select": {
+      "mode": {
+        "name": "Modalità dispositivo",
+        "state": {
+          "sos": "Pulsante SOS",
+          "pet": "Localizzatore animali",
+          "asset": "Localizzatore oggetti"
+        }
+      },
       "ring_mode": {
         "name": "Modalità suoneria",
         "state": {
@@ -117,11 +143,23 @@
       }
     },
     "switch": {
+      "battery_save_mode": {
+        "name": "Risparmio batteria"
+      },
+      "flashlight": {
+        "name": "Torcia"
+      },
       "status_led": {
         "name": "LED di stato"
       }
     },
     "text": {
+      "tracker_nickname": {
+        "name": "Nome tracker"
+      },
+      "sim_phone": {
+        "name": "Numero SIM"
+      },
       "sos_1": {
         "name": "SOS 1"
       },
@@ -155,6 +193,84 @@
     }
   },
   "services": {
+    "power_off": {
+      "name": "Spegni tracker",
+      "description": "Interrompe localizzazione e chiamate. Per riaccenderlo serve accesso fisico; nessuna riaccensione remota nota. Il successo indica solo accettazione cloud.",
+      "fields": {
+        "confirm": {
+          "name": "Comprendo che servirà accesso fisico per riaccendere il tracker"
+        }
+      }
+    },
+    "restart": {
+      "name": "Riavvia tracker",
+      "description": "Richiede un riavvio, interrompendo temporaneamente localizzazione e chiamate. Non è un reset di fabbrica. L'accettazione cloud non prova il riavvio o la conservazione dei dati.",
+      "fields": {
+        "confirm": {
+          "name": "Accetto l'interruzione e posso recuperare fisicamente il tracker"
+        }
+      }
+    },
+    "set_safe_zone": {
+      "name": "Imposta zona sicura",
+      "description": "Modifica una zona MyKi, preservando i campi omessi. Raggio in metri.",
+      "fields": {
+        "zone": {
+          "name": "Zona"
+        },
+        "name": {
+          "name": "Nome zona"
+        },
+        "latitude": {
+          "name": "Latitudine"
+        },
+        "longitude": {
+          "name": "Longitudine"
+        },
+        "radius": {
+          "name": "Raggio (metri)"
+        },
+        "enabled": {
+          "name": "Attiva"
+        },
+        "ring_mode": {
+          "name": "Modalità suoneria"
+        }
+      }
+    },
+    "set_dnd": {
+      "name": "Imposta Non disturbare",
+      "description": "Modifica il primo intervallo, preservando gli altri tre. Orari HH:MM del tracker, senza conversione di fuso.",
+      "fields": {
+        "enabled": {
+          "name": "Attivo"
+        },
+        "start": {
+          "name": "Inizio (HH:MM)"
+        },
+        "end": {
+          "name": "Fine (HH:MM)"
+        }
+      }
+    },
+    "set_alarm": {
+      "name": "Imposta sveglia",
+      "description": "Modifica una sveglia condivisa preservando le altre. Orari HH:MM del tracker, senza conversione di fuso.",
+      "fields": {
+        "alarm": {
+          "name": "Sveglia"
+        },
+        "enabled": {
+          "name": "Attiva"
+        },
+        "time": {
+          "name": "Ora (HH:MM)"
+        },
+        "weekdays": {
+          "name": "Giorni (sun–sat)"
+        }
+      }
+    },
     "find": {
       "name": "Find tracker",
       "description": "Fa suonare il tracker per trovarlo."

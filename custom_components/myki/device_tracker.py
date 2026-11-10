@@ -11,6 +11,7 @@ from .const import ATTR_PHONE, SERVICE_FIND, SERVICE_MAKE_CALL
 from .contacts import CONTACT_SLOTS
 from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
+from .settings import WEEKDAYS, read_group
 from .utils import get_position, get_zone
 
 MAKE_CALL_SCHEMA = {
@@ -28,6 +29,28 @@ async def async_setup_entry(
     platform = async_get_current_platform()
     platform.async_register_entity_service(SERVICE_FIND, None, "async_find")
     platform.async_register_entity_service(SERVICE_MAKE_CALL, MAKE_CALL_SCHEMA, "async_make_call")
+    platform.async_register_entity_service("set_safe_zone", {
+        vol.Required("zone"): vol.In(("safe_zone_1", "safe_zone_2")),
+        vol.Optional("name"): str,
+        vol.Optional("latitude"): vol.Coerce(float),
+        vol.Optional("longitude"): vol.Coerce(float),
+        vol.Optional("radius"): vol.Coerce(float),
+        vol.Optional("enabled"): bool,
+        vol.Optional("ring_mode"): vol.In(("1", "2", "3", "4")),
+    }, "async_set_safe_zone")
+    platform.async_register_entity_service("set_dnd", {
+        vol.Required("enabled"): bool,
+        vol.Optional("start"): str,
+        vol.Optional("end"): str,
+    }, "async_set_dnd")
+    platform.async_register_entity_service("set_alarm", {
+        vol.Required("alarm"): vol.In(("alarm_1", "alarm_2", "alarm_3")),
+        vol.Optional("enabled"): bool,
+        vol.Optional("time"): str,
+        vol.Optional("weekdays"): [vol.In(WEEKDAYS)],
+    }, "async_set_alarm")
+    for service, method in (("power_off", "async_power_off"), ("restart", "async_restart")):
+        platform.async_register_entity_service(service, {vol.Required("confirm"): bool}, method)
     async_add_entities(MykiTrackerEntity(coordinator, wid) for wid in coordinator.data)
 
 
@@ -55,6 +78,37 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
         except MykiError as err:
             await self.coordinator.async_request_refresh()
             raise HomeAssistantError(f"MyKi call failed: {err}") from err
+
+    async def async_power_off(self, confirm: bool) -> None:
+        await self._async_device_command("poweroff", confirm)
+
+    async def async_restart(self, confirm: bool) -> None:
+        await self._async_device_command("reset", confirm)
+
+    async def _async_device_command(self, command: str, confirm: bool) -> None:
+        try:
+            await self.coordinator.async_device_command(self.watch_id, command, confirm)
+        except MykiError as err:
+            raise HomeAssistantError(f"MyKi device command failed: {err}") from err
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_safe_zone(self, zone: str, **changes) -> None:
+        await self._async_edit_group(zone, changes)
+
+    async def async_set_dnd(self, enabled: bool, **changes) -> None:
+        await self._async_edit_group("silencetime", {"enabled": enabled, **changes}, 0)
+
+    async def async_set_alarm(self, alarm: str, **changes) -> None:
+        await self._async_edit_group("remind", changes, int(alarm[-1]) - 1)
+
+    async def _async_edit_group(self, key: str, changes: dict, index: int | None = None) -> None:
+        try:
+            cached = read_group(self.app_data, key)
+            expected = cached[index] if index is not None else cached
+            await self.coordinator.async_edit_setting_group(self.watch_id, key, changes, expected, index)
+        except (MykiError, ValueError) as err:
+            await self.coordinator.async_request_refresh()
+            raise HomeAssistantError(f"MyKi setting update failed: {err}") from err
 
     @property
     def source_type(self) -> SourceType:

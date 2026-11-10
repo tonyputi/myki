@@ -10,6 +10,7 @@ from .api import MykiError
 from .const import PERSONALIZATION_OPTIONS
 from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
+from .settings import scalar_setting
 
 
 async def async_setup_entry(
@@ -17,7 +18,7 @@ async def async_setup_entry(
 ) -> None:
     async_add_entities(
         MykiPersonalizationSelect(entry.runtime_data, wid, key)
-        for wid in entry.runtime_data.data for key in ("profile", "ringtone")
+        for wid in entry.runtime_data.data for key in ("profile", "ringtone", "mode")
     )
 
 
@@ -35,14 +36,14 @@ class MykiPersonalizationSelect(MykiEntity, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        value = str((self.app_data.get("commands") or {}).get(self.key))
+        value = scalar_setting(self.app_data, self.key)
         return PERSONALIZATION_OPTIONS[self.key].get(value)
 
     async def async_select_option(self, option: str) -> None:
         value = next((key for key, name in PERSONALIZATION_OPTIONS[self.key].items() if name == option), None)
         if value is None:
             raise HomeAssistantError("Invalid MyKi personalization option")
-        expected = str((self.app_data.get("commands") or {}).get(self.key))
+        expected = scalar_setting(self.app_data, self.key)
         try:
             await self.coordinator.async_set_personalization(self.watch_id, self.key, value, expected)
         except MykiError as err:

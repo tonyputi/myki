@@ -1,5 +1,7 @@
 """Shared SOS and whitelist slots, stored only in the MyKi cloud."""
 
+import re
+
 from homeassistant.components.text import TextEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -19,6 +21,45 @@ async def async_setup_entry(
         MykiContact(entry.runtime_data, wid, slot)
         for wid in entry.runtime_data.data for slot in CONTACT_SLOTS
     )
+    async_add_entities(
+        MykiTrackerDetail(entry.runtime_data, wid, key)
+        for wid in entry.runtime_data.data for key in ("nickname", "msisdn")
+    )
+
+
+class MykiTrackerDetail(MykiEntity, TextEntity):
+    """Nickname or SIM number from the app's paired tracker-details write."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_min = 1
+
+    def __init__(self, coordinator: MykiCoordinator, watch_id: str, key: str) -> None:
+        super().__init__(coordinator, watch_id)
+        self.key = key
+        self._attr_translation_key = "tracker_nickname" if key == "nickname" else "sim_phone"
+        self._attr_unique_id = f"{watch_id}_{self._attr_translation_key}"
+        self._attr_native_max = 255 if key == "nickname" else 32
+        if key == "msisdn":
+            self._attr_pattern = r"\+?[0-9]+"
+
+    @property
+    def native_value(self) -> str | None:
+        value = (self.app_data.get("settings") or {}).get(self.key)
+        if not isinstance(value, str) or not value.strip() or len(value) > self._attr_native_max:
+            return None
+        if self.key == "msisdn" and not re.fullmatch(self._attr_pattern, value):
+            return None
+        return value
+
+    async def async_set_value(self, value: str) -> None:
+        expected = self.native_value
+        if expected is None:
+            raise HomeAssistantError("MyKi tracker details are invalid; refresh before editing")
+        try:
+            await self.coordinator.async_set_tracker_detail(self.watch_id, self.key, value, expected)
+        except MykiError as err:
+            await self.coordinator.async_request_refresh()
+            raise HomeAssistantError(f"MyKi tracker details update failed: {err}") from err
 
 
 class MykiContact(MykiEntity, TextEntity):
