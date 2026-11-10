@@ -87,9 +87,9 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 | Find tracker | Implemented button and entity action | `ApiInterface.findTracker`, integration button/tracker platforms |
 | Live tracking / RTT | Implemented command and countdown; exact duration units and limits remain unverified | `ApiInterface.startRealTimeTracking`, #29 |
 | Ring volume and call volume | Implemented number entities; retain existing IDs and readback behavior | `PersonalizeFragment`, #41 |
-| Global ring mode: sound+vibration / sound / vibration / mute | Missing shared selector; app profile values 1/2/3/4 | `PersonalizeFragment.setRightView/changeSoundProfile`, #41 |
-| Global ringtone: Classic / Playtime / Twinkle | Missing shared selector; app values 0/1/2 | `PersonalizeFragment.setRightView/setRingtone`, #41 |
-| Status LED switch | Missing; distinguish default status-light state from temporary LED-party operation | `PersonalizeFragment`, `HomeActivity` LED constants, #41 |
+| Global ring mode: sound+vibration / sound / vibration / mute | Implemented cloud-backed selector; app profile values 1/2/3/4, no saved HA preference | `PersonalizeFragment.setRightView/changeSoundProfile`, #41 |
+| Global ringtone: Classic / Playtime / Twinkle | Implemented cloud-backed selector; app values 0/1/2 | `PersonalizeFragment.setRightView/setRingtone`, #41 |
+| Status LED switch | Implemented: default=1, disabled=0; temporary party=2 reads unknown and is never sent by the switch | `PersonalizeFragment`, `HomeActivity` LED constants, #41 |
 | Battery save | Missing shared control; app writes `battery_save_mode` 0/1 | `DialogBatterySaveModeFragment.batterySaveMode`, #42 |
 | SOS Button / Pet Tracker / Asset Tracker mode | Partial: mode attribute exists, shared editing missing; these modes are not different product models | `DeviceModeFromSettingsFragment`, `ChooseFunctionalityActivity`, #42 |
 | Do not disturb: enabled, start and end time | Missing; app edits one HH:MM-HH:MM period while API accepts four | `DNDFragment`, #43 |
@@ -112,6 +112,7 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 ### Evidence gates and exclusions
 
 - MyKi cloud is the source of truth for contacts and tracker settings; do not invent persistent HA-only tracker preferences. Integration-only connection/polling settings are separate. The code preserves SOS slot positions; it does **not** establish the tracker's full emergency dialing algorithm. Removing the HA-only calling selector/button does not change physical SOS behavior.
+- Global personalization controls require fresh cloud data and confirmed readback, reject stale/offline writes and do not alter safe-zone JSON. Physical behavior and precedence with zones/DND remain unverified under #41.
 - Zone `profile` values mean **1 sound+vibration, 2 sound, 3 vibration, 4 mute** in app read/write code. Zone JSON contains no ringtone selection in that path. Global ringtone selection is separate. Physical switching on entering/leaving a zone, precedence with DND/global mode and restoration on exit require hardware evidence; do not promise them based on storage alone.
 - Notification preferences are loaded from Android storage and registered with FCM tokens/installation IDs. Do not imitate the phone or collect its tokens to create apparent parity. #44 must decide what can actually be synchronized and document phone-local exclusions.
 - The operator reports a satellite count of zero. HA exposes the vendor value without substituting zero for missing data. Compare a recent GPS fix against the cloud before diagnosing it; exact satellite semantics remain unverified under #29.

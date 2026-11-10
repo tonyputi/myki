@@ -11,6 +11,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import MykiAuthError, MykiClient, MykiError
+from .const import PERSONALIZATION_OPTIONS
 from .contacts import CONTACT_SLOTS, contact_numbers, normalize_phone
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,6 +94,28 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
         """Publish cloud data, never the requested value optimistically."""
         if watch_id in self.data:
             self.async_set_updated_data({**self.data, watch_id: {**self.data[watch_id], "app": app}})
+
+    async def async_set_personalization(self, watch_id: str, key: str, value: str, expected: str) -> None:
+        """Write one shared app setting and require matching cloud readback."""
+        if key not in PERSONALIZATION_OPTIONS or value not in PERSONALIZATION_OPTIONS[key]:
+            raise MykiError("invalid personalization setting")
+        async with self._contact_lock:
+            app = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, app)
+            current = str((app.get("commands") or {}).get(key))
+            if current not in PERSONALIZATION_OPTIONS[key] and not (key == "led" and current == "2"):
+                raise MykiError("personalization data is invalid; refresh before editing")
+            if current != expected:
+                raise MykiError("setting changed in MyKi; refresh and try again")
+            if current == value:
+                return
+            if str((app.get("settings") or {}).get("online")) != "1":
+                raise MykiError("tracker is offline; setting was not changed")
+            await self.client.set_personalization(watch_id, key, value)
+            confirmed = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, confirmed)
+            if str((confirmed.get("commands") or {}).get(key)) != value:
+                raise MykiError("setting update was not confirmed by MyKi; refresh before retrying")
 
     async def async_call_contact(self, watch_id: str, slot: str | None = None, *, phone: str | None = None) -> None:
         """Resolve the slot again immediately before calling; never cache its number."""

@@ -27,6 +27,9 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 | `sensor.<kid>_gsm_signal` | GSM signal % (diagnostic) |
 | `button.<kid>_find` | Ring the tracker |
 | `number.<kid>_ring_volume` / `number.<kid>_call_volume` | Volume sliders (config) |
+| `select.<kid>_ring_mode` | Shared sound/vibration mode (config) |
+| `select.<kid>_ringtone` | Shared Classic / Playtime / Twinkle ringtone (config) |
+| `switch.<kid>_status_led` | Shared default status LED indication (config) |
 | `text.<kid>_sos_1` … `sos_3` | Shared MyKi SOS numbers (config) |
 | `text.<kid>_whitelist_1` … `whitelist_7` | Shared app-visible whitelist numbers (config) |
 
@@ -63,6 +66,16 @@ MyKi cloud is the source of truth for tracker settings and contacts; HA does not
 **Upgrade:** the HA-only **Call contact** selector and **Call me** button are removed, together with their saved `call_contacts` and legacy `call_me_number` options. Their entity-registry entries are cleaned up automatically on setup. Automations or dashboards referencing these removed entities must be updated; use the existing `myki.make_call` action for explicit calls. No SOS/whitelist cloud contacts are inserted, changed or deleted by this cleanup, and the physical SOS button is unaffected.
 
 **Privacy:** contact text values are personal data in HA states and may be recorded in history or included in HA debug logs/backups. Restrict HA access and exclude these entities from Recorder if needed. MyKi diagnostics do not include the contacts; MyKi-generated errors do not include numbers.
+
+## Shared personalization
+
+Ring mode, ringtone and status LED read the same global command-state fields as the MyKi app. Ring mode offers sound and vibration, sound only, vibration only and mute; ringtone offers Classic, Playtime and Twinkle. No selection is saved in HA options. App changes appear on the next successful refresh, and existing volume entities are unchanged.
+
+Each change reads the current cloud state, rejects a stale edit or offline tracker, writes only the selected setting and requires matching cloud readback. Missing/unsupported values display `unknown` and are not silently replaced. No optimistic state, automatic retry or rollback is used; after an uncertain result, refresh and inspect the app before retrying. Local commands and polling are serialized, but the vendor API has no conditional writes to prevent simultaneous app edits atomically.
+
+The LED switch sends **1** for default status indication or **0** for disabled, never the temporary LED-party value **2**. During temporary mode, the switch displays `unknown` because the stored default preference cannot be inferred; an explicit on/off action replaces that mode. The switch does not promise a continuously lit LED.
+
+These are global settings, not per-zone melodies. Safe-zone profiles are left untouched; hardware precedence with zones/DND and app/cloud/tracker round-trip behavior remain unverified under #41. Cloud readback is not proof that the physical tracker has applied a change. No automatic sound preview is played.
 
 ## Attach a tracker to a person
 
