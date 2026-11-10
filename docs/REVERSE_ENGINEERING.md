@@ -73,6 +73,21 @@ Analysis used the existing JADX CLI, not REA Evidence: REA's Android provider wa
 
 The API exposes no conditional-write revision in these declarations. Local HA serialization cannot guarantee atomic conflict prevention against simultaneous app edits; read-before-write and readback reduce, but cannot eliminate, that race.
 
+## Settings and notification scope evidence
+
+The following observations use the same APK/hash and JADX limitations as the contact inspection above. They are static evidence, not live execution:
+
+- `PersonalizeFragment.setRightView` reads global profile **1 sound+vibration, 2 sound, 3 vibration, 4 mute** and ringtone **0 Classic, 1 Playtime, 2 Twinkle**. Its setters call `watch/profile` and `watch/ringtone` separately. `TrackerInformationHandler` populates the corresponding model from command state.
+- `SafeZonesFragment.setValuesToControllersAndDrawZone` maps zone `profile` 1–4 to those sound/vibration buttons. `addSafeZone` serializes only `name`, `lat`, `lon`, `radius`, `active`, `profile`. This establishes a per-zone sound profile, **not a per-zone ringtone/melody** or proven device-side switching/exit behavior.
+- `SettingsFragment.bakeSpaghettiCombinationForNotificationAndRegister` builds push permission bits from SOS, low battery, zone out and zone in switches, invokes the FCM registration helper, and saves a separate preference string in Android storage. `setSwitchesToRightPosition` reloads that local string. `NotificationsHandler.registerFCM` submits the bits with FCM token, Firebase installation ID and account tracker IDs to the notification backend. No read/write of a shared tracker setting is established by this path; remote control of an existing phone's registration is not established either.
+- `DialogBatterySaveModeFragment.batterySaveMode` uses `watch/save-settings` with key `battery_save_mode` and values 0/1. `DeviceModeFromSettingsFragment` uses `ChooseFunctionalityActivity` constants `sos`, `pet`, `asset` and calls `watch/mode`. Firmware effects and mode side effects require separate verification.
+- `DNDFragment.bakePeriod` serializes a start/end wall-clock interval as `HH:MM-HH:MM`. `setDND` sends it as period 1 (or the zero sentinel when disabled), followed by three zero periods. This is not evidence of correct overnight/DST handling, and HA must not copy the app's clearing of other periods blindly.
+- `Alarm` exposes time, active state and seven weekday bits from its serialized alarm string. `AlarmSetFragment` and `AlarmsListFragment` write three alarm values together using `watch/remind`; weekday order and disabled forms must be verified before implementation.
+- `PersonalizeFragment` maps the status-light switch through `HomeActivity` LED operations. `HomeActivity` distinguishes default=1, off=0, temporary on/party=2. A binary switch must not conflate all three semantics without verification.
+- The app force-call dialog submits the entered phone directly through `watch/call`. The HA Call contact selector is a convenience for initiating that command, not a vendor setting or emergency-contact ordering control. The app's ordered SOS slots do not prove firmware dialing fallback/retry behavior.
+
+Implementation dispositions and focused tracking issues are maintained in [CAPABILITIES.md](CAPABILITIES.md), parent #29. Dangerous endpoint declarations are inventory only, never execution approval.
+
 ## Extra details (verified later)
 
 - Events (`watch/history/events`): items contain `event_name` + `timestamp`. Tests cover numeric timestamps; actual timestamp semantics and safe-zone event names still need vendor/hardware evidence. Startup history is not replayed.
