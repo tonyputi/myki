@@ -74,6 +74,12 @@ MyKi cloud is the source of truth for tracker settings and contacts; HA does not
 
 **Privacy:** contact text values are personal data in HA states and may be recorded in history or included in HA debug logs/backups. Restrict HA access and exclude these entities from Recorder if needed. MyKi diagnostics do not include the contacts; MyKi-generated errors do not include numbers.
 
+### Device-page ordering
+
+Home Assistant sorts the standard device panels by display name. Names use translated group prefixes (Audio, Contacts, Device, Lights, Schedules, Zones; Cloud, Reception and Tracking for diagnostics). Cell towers, GPS satellites, GSM signal and WiFi networks share the Reception prefix. These are name groups, not custom subpanels. Established entity IDs and user-customized names are preserved, including on reload; custom names may sort outside the default groups. Example IDs below retain their original bases.
+
+Zone, DND and alarm sensors show configuration; edit them using the `myki.set_safe_zone`, `myki.set_dnd` and `myki.set_alarm` actions described below, not by clicking the read-only sensor state. There is no inline schedule/map editor in the standard device panel.
+
 ## Shared personalization
 
 Ring mode, ringtone and status LED read the same global command-state fields as the MyKi app. Ring mode offers sound and vibration, sound only, vibration only and mute; ringtone offers Classic, Playtime and Twinkle. When the cloud omits the ringtone field, HA displays Classic, matching the app's initial value; a present but invalid value remains unknown. This fallback does not write a setting to the tracker. No selection is saved in HA options. App changes appear on the next successful refresh, and existing volume entities are unchanged.

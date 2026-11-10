@@ -9,6 +9,43 @@ from .const import DOMAIN
 from .coordinator import MykiCoordinator
 from .utils import get_model
 
+# Keep established entity IDs independent of translated display-name group prefixes.
+_ENTITY_OBJECT_NAMES = {
+    "safe_zone_1": "Safe zone 1",
+    "safe_zone_2": "Safe zone 2",
+    "dnd": "Do not disturb",
+    "alarm_1": "Alarm 1",
+    "alarm_2": "Alarm 2",
+    "alarm_3": "Alarm 3",
+    "gsm_signal": "GSM signal",
+    "gps_satellites": "GPS satellites",
+    "wifi_networks": "WiFi networks",
+    "base_stations": "Cell towers",
+    "rtt_seconds_left": "Live tracking seconds left",
+    "fresh_data": "Fresh data",
+    "online": "Online",
+    "ring_volume": "Ring volume",
+    "call_volume": "Call volume",
+    "mode": "Operating mode",
+    "ring_mode": "Ring mode",
+    "ringtone": "Ringtone",
+    "battery_save_mode": "Battery save",
+    "flashlight": "Flashlight",
+    "status_led": "Status LED",
+    "tracker_nickname": "Tracker nickname",
+    "sim_phone": "SIM phone number",
+    "sos_1": "SOS 1",
+    "sos_2": "SOS 2",
+    "sos_3": "SOS 3",
+    "whitelist_1": "Whitelist 1",
+    "whitelist_2": "Whitelist 2",
+    "whitelist_3": "Whitelist 3",
+    "whitelist_4": "Whitelist 4",
+    "whitelist_5": "Whitelist 5",
+    "whitelist_6": "Whitelist 6",
+    "whitelist_7": "Whitelist 7"
+}
+
 
 class MykiEntity(CoordinatorEntity[MykiCoordinator]):
     """Base entity for one MyKi tracker."""
@@ -26,6 +63,11 @@ class MykiEntity(CoordinatorEntity[MykiCoordinator]):
             model=get_model(data["app"]),
             sw_version=(data["app"].get("settings") or {}).get("fw"),
         )
+
+    @property
+    def suggested_object_id(self) -> str | None:
+        """Keep the original object-name base when regrouping display names."""
+        return _ENTITY_OBJECT_NAMES.get(self.translation_key, super().suggested_object_id)
 
     @property
     def app_data(self) -> dict[str, Any]:
