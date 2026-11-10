@@ -25,11 +25,10 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 | `sensor.<kid>_live_tracking_seconds_left` | Live tracking countdown |
 | `binary_sensor.<kid>_fresh_data` | Device has reported within 30 min |
 | `sensor.<kid>_gsm_signal` | GSM signal % (diagnostic) |
-| `button.<kid>_find` / `button.<kid>_call_me` | Ring the tracker / call you |
+| `button.<kid>_find` | Ring the tracker |
 | `number.<kid>_ring_volume` / `number.<kid>_call_volume` | Volume sliders (config) |
 | `text.<kid>_sos_1` … `sos_3` | Shared MyKi SOS numbers (config) |
 | `text.<kid>_whitelist_1` … `whitelist_7` | Shared app-visible whitelist numbers (config) |
-| `select.<kid>_call_contact` | Shared slot used by the Call me button |
 
 The zone sensor is calculated from the reported position and active MyKi safe zones. Invalid coordinates or malformed zone configuration produce `unknown`, not `away`; disabled zones are ignored. Automations should ignore `unknown`/`unavailable` transitions and allow for tracker reporting and cloud polling delays.
 
@@ -59,9 +58,9 @@ The app exposes three SOS and seven whitelist numbers. Whitelist writes require 
 
 **Avoid editing the same whitelist group simultaneously in HA and the app.** HA serializes its own edits and checks readback, but the vendor API offers no conditional-write/version token: an app edit between HA's read and write cannot be prevented atomically. Cloud confirmation is not proof that hardware has applied the setting. Physical-device/app write verification remains tracked in #27.
 
-Choose a slot with **Call contact** to enable the existing **Call me** button. Its number is resolved from the cloud when pressed. The selection stores only a slot reference and reloads the integration, not HA Core. Existing `myki.make_call` automations using `phone` still work only if that number matches an app-visible shared contact (`+`/`00` compare equivalently); migrate them to `contact`.
+MyKi cloud is the source of truth for tracker settings and contacts; HA does not keep a separate calling destination. To initiate a call from HA, use `myki.make_call` with the contact specified for that execution, as above. Its current number is resolved from the cloud. Existing automations using `phone` still work only if that number matches an app-visible shared contact (`+`/`00` compare equivalently).
 
-On upgrade, the old local `call_me_number` option is removed. For each tracker, a matching shared number becomes the selected slot automatically, preserving the button's unique ID. If no shared contact matches, the button is disabled and a non-personal warning is logged: choose an existing slot or edit the appropriate shared contact deliberately. Migration never inserts or overwrites cloud contacts.
+**Upgrade:** the HA-only **Call contact** selector and **Call me** button are removed, together with their saved `call_contacts` and legacy `call_me_number` options. Their entity-registry entries are cleaned up automatically on setup. Automations or dashboards referencing these removed entities must be updated; use the existing `myki.make_call` action for explicit calls. No SOS/whitelist cloud contacts are inserted, changed or deleted by this cleanup, and the physical SOS button is unaffected.
 
 **Privacy:** contact text values are personal data in HA states and may be recorded in history or included in HA debug logs/backups. Restrict HA access and exclude these entities from Recorder if needed. MyKi diagnostics do not include the contacts; MyKi-generated errors do not include numbers.
 

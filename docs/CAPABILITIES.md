@@ -3,7 +3,7 @@
 Sources: decompiled `com.allterco.mykispot` v2.6.19 and selected live API responses. The APK/decompiled artifacts are not shipped in this repository.
 App code paths and stored cloud fields do not prove that every feature works on MyKi Spot hardware. Remaining app-parity verification is tracked in #29; this is not a support guarantee.
 
-This inventory uses the operator's screen walkthrough and static code from APK `2.6.19.8a84c06` (artifact hash and analysis limitations in [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md)). Screenshots and remaining screen-by-screen validation are still pending. HA status below describes the implementation in v0.9.0, not proof that every control has been physically tested. A one-to-one inventory means every app capability gets a disposition, not that destructive or phone-local controls must become HA entities.
+This inventory uses the operator's screen walkthrough and static code from APK `2.6.19.8a84c06` (artifact hash and analysis limitations in [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md)). Screenshots and remaining screen-by-screen validation are still pending. HA status below describes the current implementation, not proof that every control has been physically tested. A one-to-one inventory means every app capability gets a disposition, not that destructive or phone-local controls must become HA entities.
 
 ## 1. What the Android app can do
 
@@ -72,7 +72,7 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 
 **Implemented** means code/tests exist; **partial** means coverage differs; **missing** means no shared control yet; **decision** means scope or safety must be settled, not silently omitted. Every future cloud control must preserve other settings, display confirmed readback and report failures without exposing personal data.
 
-| App capability | HA v0.9.0 status / intended disposition | Evidence and tracking |
+| App capability | HA status / intended disposition | Evidence and tracking |
 |---|---|---|
 | Tracker list and per-tracker live map | Implemented: one HA device and `device_tracker` per tracker; polling defaults to 60 s, not the app's 10 s | `MainMapFragment`, integration coordinator; no custom replica of the app map |
 | Battery, online status, current steps | Implemented sensors; hardware reporting delay still applies | `TrackerInformationHandler`, integration sensor platforms |
@@ -83,7 +83,7 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 | Android phonebook picker | App imports a phone number; not a second named cloud contact book | `SosAndWhitelistFragment.getContactPhone`, #27 |
 | Physical SOS button dialing | Ordered slots are preserved, but exact dialing order/fallback/retry behavior is not established by app code or the user's single observed first-number call | #27; do not test emergency calls without explicit approval |
 | App command to make tracker call a number | Implemented `myki.make_call`; HA resolves an existing shared slot | `DialogAskForPhoneNumberToCallFragment`, #27 |
-| HA Call contact selector / Call me button | HA-only command convenience, **not** an app SOS priority setting; design/label review pending | #27; selection does not rewrite any SOS/whitelist slot |
+| HA Call contact selector / Call me button | Removed: no equivalent shared MyKi setting; saved local options and registry entries are cleaned up without cloud writes | #27; explicit `myki.make_call` action remains, with a target supplied per execution |
 | Find tracker | Implemented button and entity action | `ApiInterface.findTracker`, integration button/tracker platforms |
 | Live tracking / RTT | Implemented command and countdown; exact duration units and limits remain unverified | `ApiInterface.startRealTimeTracking`, #29 |
 | Ring volume and call volume | Implemented number entities; retain existing IDs and readback behavior | `PersonalizeFragment`, #41 |
@@ -111,7 +111,7 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 
 ### Evidence gates and exclusions
 
-- The code preserves SOS slot positions; it does **not** establish the tracker's full emergency dialing algorithm. The Call contact selector only chooses the target for an HA-initiated call. Its label and necessity should be reviewed under #27 before adding further UI.
+- MyKi cloud is the source of truth for contacts and tracker settings; do not invent persistent HA-only tracker preferences. Integration-only connection/polling settings are separate. The code preserves SOS slot positions; it does **not** establish the tracker's full emergency dialing algorithm. Removing the HA-only calling selector/button does not change physical SOS behavior.
 - Zone `profile` values mean **1 sound+vibration, 2 sound, 3 vibration, 4 mute** in app read/write code. Zone JSON contains no ringtone selection in that path. Global ringtone selection is separate. Physical switching on entering/leaving a zone, precedence with DND/global mode and restoration on exit require hardware evidence; do not promise them based on storage alone.
 - Notification preferences are loaded from Android storage and registered with FCM tokens/installation IDs. Do not imitate the phone or collect its tokens to create apparent parity. #44 must decide what can actually be synchronized and document phone-local exclusions.
 - The operator reports a satellite count of zero. HA exposes the vendor value without substituting zero for missing data. Compare a recent GPS fix against the cloud before diagnosing it; exact satellite semantics remain unverified under #29.

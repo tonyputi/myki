@@ -3,8 +3,6 @@
 DOMAIN = "myki"
 
 CONF_SCAN_INTERVAL = "scan_interval"
-CONF_CALL_ME_NUMBER = "call_me_number"  # Legacy option, migrated to a shared slot at setup.
-CONF_CALL_CONTACTS = "call_contacts"
 DEFAULT_SCAN_INTERVAL = 60
 MIN_SCAN_INTERVAL = 10  # the vendor app polls every 10 s
 
