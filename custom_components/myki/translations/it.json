@@ -299,93 +299,14 @@
         "name": "Tracking live"
       }
     },
-    "number": {
-      "ring_volume": {
-        "name": "Audio: Volume suoneria"
-      },
-      "call_volume": {
-        "name": "Audio: Volume chiamata"
-      }
-    },
     "event": {
       "events": {
         "name": "Eventi"
       }
     },
-    "select": {
-      "mode": {
-        "name": "Dispositivo: Modalità dispositivo",
-        "state": {
-          "sos": "Pulsante SOS",
-          "pet": "Localizzatore animali",
-          "asset": "Localizzatore oggetti"
-        }
-      },
-      "ring_mode": {
-        "name": "Audio: Modalità suoneria",
-        "state": {
-          "sound_and_vibration": "Audio e vibrazione",
-          "sound": "Solo audio",
-          "vibration": "Solo vibrazione",
-          "mute": "Silenzioso"
-        }
-      },
-      "ringtone": {
-        "name": "Audio: Suoneria",
-        "state": {
-          "classic": "Classic",
-          "playtime": "Playtime",
-          "twinkle": "Twinkle"
-        }
-      }
-    },
     "switch": {
-      "battery_save_mode": {
-        "name": "Dispositivo: Risparmio batteria"
-      },
       "flashlight": {
         "name": "Luci: Torcia"
-      },
-      "status_led": {
-        "name": "Luci: LED di stato"
-      }
-    },
-    "text": {
-      "tracker_nickname": {
-        "name": "Dispositivo: Nome tracker"
-      },
-      "sim_phone": {
-        "name": "Dispositivo: Numero SIM"
-      },
-      "sos_1": {
-        "name": "Contatti: SOS 1"
-      },
-      "sos_2": {
-        "name": "Contatti: SOS 2"
-      },
-      "sos_3": {
-        "name": "Contatti: SOS 3"
-      },
-      "whitelist_1": {
-        "name": "Contatti: Whitelist 1"
-      },
-      "whitelist_2": {
-        "name": "Contatti: Whitelist 2"
-      },
-      "whitelist_3": {
-        "name": "Contatti: Whitelist 3"
-      },
-      "whitelist_4": {
-        "name": "Contatti: Whitelist 4"
-      },
-      "whitelist_5": {
-        "name": "Contatti: Whitelist 5"
-      },
-      "whitelist_6": {
-        "name": "Contatti: Whitelist 6"
-      },
-      "whitelist_7": {
-        "name": "Contatti: Whitelist 7"
       }
     }
   },

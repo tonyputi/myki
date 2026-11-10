@@ -299,93 +299,14 @@
         "name": "Live tracking"
       }
     },
-    "number": {
-      "ring_volume": {
-        "name": "Audio: Ring volume"
-      },
-      "call_volume": {
-        "name": "Audio: Call volume"
-      }
-    },
     "event": {
       "events": {
         "name": "Events"
       }
     },
-    "select": {
-      "mode": {
-        "name": "Device: Operating mode",
-        "state": {
-          "sos": "SOS button",
-          "pet": "Pet tracker",
-          "asset": "Asset tracker"
-        }
-      },
-      "ring_mode": {
-        "name": "Audio: Ring mode",
-        "state": {
-          "sound_and_vibration": "Sound and vibration",
-          "sound": "Sound only",
-          "vibration": "Vibration only",
-          "mute": "Mute"
-        }
-      },
-      "ringtone": {
-        "name": "Audio: Ringtone",
-        "state": {
-          "classic": "Classic",
-          "playtime": "Playtime",
-          "twinkle": "Twinkle"
-        }
-      }
-    },
     "switch": {
-      "battery_save_mode": {
-        "name": "Device: Battery save"
-      },
       "flashlight": {
         "name": "Lights: Flashlight"
-      },
-      "status_led": {
-        "name": "Lights: Status LED"
-      }
-    },
-    "text": {
-      "tracker_nickname": {
-        "name": "Device: Tracker nickname"
-      },
-      "sim_phone": {
-        "name": "Device: SIM phone number"
-      },
-      "sos_1": {
-        "name": "Contacts: SOS 1"
-      },
-      "sos_2": {
-        "name": "Contacts: SOS 2"
-      },
-      "sos_3": {
-        "name": "Contacts: SOS 3"
-      },
-      "whitelist_1": {
-        "name": "Contacts: Whitelist 1"
-      },
-      "whitelist_2": {
-        "name": "Contacts: Whitelist 2"
-      },
-      "whitelist_3": {
-        "name": "Contacts: Whitelist 3"
-      },
-      "whitelist_4": {
-        "name": "Contacts: Whitelist 4"
-      },
-      "whitelist_5": {
-        "name": "Contacts: Whitelist 5"
-      },
-      "whitelist_6": {
-        "name": "Contacts: Whitelist 6"
-      },
-      "whitelist_7": {
-        "name": "Contacts: Whitelist 7"
       }
     }
   },

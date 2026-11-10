@@ -34,7 +34,6 @@ class MykiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the MyKi config flow."""
 
     VERSION = 1
-    MINOR_VERSION = 2
 
     @staticmethod
     @callback

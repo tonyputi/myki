@@ -10,7 +10,6 @@ from homeassistant.helpers import entity_registry as er, selector
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
 
-from custom_components.myki import async_migrate_entry
 from custom_components.myki.api import BASE_URL, MykiAuthError, MykiClient, MykiError
 
 ZONE = {"name": "Home", "lat": 10, "lon": 20, "radius": 0.2, "active": 1, "profile": 1, "opaque": {"keep": True}}
@@ -95,8 +94,7 @@ async def test_default_device_page_only_exposes_status_diagnostics_and_quick_con
     registry = er.async_get(hass)
     for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
         if entity.domain in ("number", "select", "text") or entity.unique_id.endswith(("_status_led", "_battery_save_mode")):
-            assert entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
-            assert hass.states.get(entity.entity_id) is None
+            pytest.fail(f"Retired configuration entity was recreated: {entity.entity_id}")
         else:
             assert entity.disabled_by is None
             assert hass.states.get(entity.entity_id) is not None
@@ -282,6 +280,16 @@ async def test_malformed_cloud_settings_are_not_invented(hass, tracker_entry, se
     assert all(write.await_count == 0 for write in writes)
 
 
+@pytest.mark.parametrize("setting", ["profile", "ringtone", "led"])
+@pytest.mark.parametrize("value", [None, "", "99", [], {}, True, 1.5])
+async def test_invalid_personalization_cannot_open_an_edit_form(hass, tracker_entry, setting, value):
+    entry, cloud, writes = tracker_entry
+    cloud["test-0"]["commands"][setting] = value
+    result = await editor(hass, entry, "audio", {"setting": setting}, expected_type=FlowResultType.ABORT)
+    assert result["reason"] == "invalid_settings"
+    assert all(write.await_count == 0 for write in writes)
+
+
 async def test_absent_ringtone_default_and_temporary_led_are_not_written_on_open(hass, tracker_entry):
     entry, cloud, writes = tracker_entry
     del cloud["test-0"]["commands"]["ringtone"]
@@ -398,29 +406,28 @@ async def test_reload_keeps_settings_in_cloud_not_ha_options(hass, tracker_entry
     assert hass.states.get("select.tracker_0_ringtone") is None
 
 
-async def test_migration_disables_only_moved_controls_and_is_one_time(hass):
-    entry = MockConfigEntry(domain="myki", data={}, version=1, minor_version=1)
-    entry.add_to_hass(hass)
+async def test_cleanup_removes_retired_controls_without_recreating_them(hass, tracker_entry):
+    entry, cloud, writes = tracker_entry
+    before = deepcopy(cloud)
     other = MockConfigEntry(domain="myki", data={})
     other.add_to_hass(hass)
     registry = er.async_get(hass)
-    controls = []
-    for domain, suffix in [("number", "volume_ring"), ("select", "ringtone"), ("switch", "status_led"), ("text", "sos_1")]:
-        entity = registry.async_get_or_create(domain, "myki", f"old-tracker_{suffix}", config_entry=entry)
-        registry.async_update_entity(entity.entity_id, name="Customized", new_entity_id=f"{domain}.renamed_{suffix}")
-        controls.append(f"{domain}.renamed_{suffix}")
-    user_disabled = registry.async_get_or_create("text", "myki", "old-tracker_whitelist_1", config_entry=entry, disabled_by=er.RegistryEntryDisabler.USER)
-    flashlight = registry.async_get_or_create("switch", "myki", "old-tracker_flashlight", config_entry=entry)
+    retired = []
+    for domain, suffix in [("number", "volume_ring"), ("select", "ringtone"), ("switch", "status_led"), ("switch", "battery_save_mode"), ("text", "sos_1"), ("text", "whitelist_7"), ("text", "tracker_nickname"), ("text", "sim_phone")]:
+        for wid in ("test-0", "removed-tracker"):
+            entity = registry.async_get_or_create(domain, "myki", f"{wid}_{suffix}", config_entry=entry, disabled_by=er.RegistryEntryDisabler.USER)
+            renamed = f"{domain}.renamed_{wid.replace('-', '_')}_{suffix}"
+            registry.async_update_entity(entity.entity_id, name="Customized", new_entity_id=renamed)
+            retired.append(renamed)
+    flashlight = registry.async_get("switch.tracker_0_flashlight")
     untouched = registry.async_get_or_create("text", "myki", "another_sos_1", config_entry=other)
-    assert await async_migrate_entry(hass, entry)
-    assert entry.minor_version == 2
-    for entity_id in controls:
-        entity = registry.async_get(entity_id)
-        assert entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
-        assert entity.name == "Customized"
-    assert registry.async_get(user_disabled.entity_id).disabled_by is er.RegistryEntryDisabler.USER
-    assert registry.async_get(flashlight.entity_id).disabled_by is None
-    assert registry.async_get(untouched.entity_id).disabled_by is None
-    registry.async_update_entity(controls[0], disabled_by=None)
-    assert await async_migrate_entry(hass, entry)
-    assert registry.async_get(controls[0]).disabled_by is None
+    for _ in range(2):
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        assert all(registry.async_get(entity_id) is None for entity_id in retired)
+        assert all(hass.states.get(entity_id) is None for entity_id in retired)
+        assert registry.async_get(flashlight.entity_id) is not None
+        assert registry.async_get(untouched.entity_id) is untouched
+        assert not any(entity.domain in ("number", "select", "text") for entity in er.async_entries_for_config_entry(registry, entry.entry_id))
+    assert cloud == before
+    assert all(write.await_count == 0 for write in writes)

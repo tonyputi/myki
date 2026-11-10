@@ -67,7 +67,7 @@ The device page is for state, diagnostic information and quick commands (Find, l
 
 ### Upgrade: settings controls moved
 
-The old `number` volume sliders, `select` ring/ringtone/mode controls, status-LED/battery switches and `text` contacts/nickname/SIM entities are **disabled once during migration**, not deleted. New entries also leave them disabled by default. Their IDs and user names are retained, and migration never writes tracker settings. Dashboard cards and automations using them need updating or explicit re-enabling under the device's disabled entities. This compatibility path is optional: controls only reappear if you choose to enable them, and subsequent reloads do not disable them again. Existing Find/live-tracking/flashlight controls, location, diagnostics, events and structured zone/schedule/call actions are unchanged.
+The old `number` volume sliders, `select` ring/ringtone/mode controls, status-LED/battery switches and `text` contacts/nickname/SIM entities are **removed**, not hidden or disabled compatibility controls. Their obsolete platform implementations and translations are deleted. Setup removes their registry entries even when renamed, disabled or associated with a tracker no longer on the account, without writing cloud settings. They cannot be re-enabled. Dashboard cards and automations referencing these removed entities must be updated; interactive edits use Configure. Existing Find/live-tracking/flashlight controls, location, diagnostics, events and structured zone/schedule/call actions are unchanged.
 
 ## Shared contacts
 
@@ -77,15 +77,15 @@ The app exposes three SOS and seven whitelist numbers. Whitelist writes require 
 
 **Avoid editing the same whitelist group simultaneously in HA and the app.** HA serializes its own edits and checks readback, but the vendor API offers no conditional-write/version token: an app edit between HA's read and write cannot be prevented atomically. Cloud confirmation is not proof that hardware has applied the setting. Physical-device/app write verification remains tracked in #27.
 
-MyKi cloud is the source of truth for tracker settings and contacts; HA does not keep a separate calling destination. To initiate a call from HA, use `myki.make_call` with the contact specified for that execution, as above. Its current number is resolved from the cloud. Existing automations using `phone` still work only if that number matches an app-visible shared contact (`+`/`00` compare equivalently).
+MyKi cloud is the source of truth for tracker settings and contacts; HA does not keep a separate calling destination. To initiate a call from HA, use `myki.make_call` with the contact specified for that execution, as above. Its current number is resolved from the cloud. The deprecated `phone` action argument is removed; automations must specify `contact` (for example, `sos_1`). There is one calling destination format, resolved from the current shared cloud slot on every execution.
 
 **Upgrade:** the HA-only **Call contact** selector and **Call me** button are removed, together with their saved `call_contacts` and legacy `call_me_number` options. Their entity-registry entries are cleaned up automatically on setup. Automations or dashboards referencing these removed entities must be updated; use the existing `myki.make_call` action for explicit calls. No SOS/whitelist cloud contacts are inserted, changed or deleted by this cleanup, and the physical SOS button is unaffected.
 
-**Privacy:** settings forms contain personal data; restrict HA access, debug logging and backups. If you explicitly re-enable the legacy contact text entities, their values are also exposed in HA states and may be recorded in history. Restrict HA access and exclude these entities from Recorder if needed. MyKi diagnostics do not include the contacts; MyKi-generated errors do not include numbers.
+**Privacy:** settings forms contain personal data; restrict HA access, debug logging and backups. Removing contact text entities does not erase any previously recorded values from Recorder or backups. MyKi diagnostics do not include the contacts; MyKi-generated errors do not include numbers.
 
 ### Device-page ordering
 
-Home Assistant sorts the standard device panels by display name. Names use translated group prefixes (Audio, Contacts, Device, Lights, Schedules, Zones; Cloud, Reception and Tracking for diagnostics). Cell towers, GPS satellites, GSM signal and WiFi networks share the Reception prefix. These are name groups, not custom subpanels. Established entity IDs and user-customized names are preserved, including on reload; custom names may sort outside the default groups. Example IDs below retain their original bases.
+Home Assistant sorts the standard device panels by display name. Read-only configuration summaries use Schedules/Zone group prefixes; diagnostics use Cloud, Reception and Tracking, and the flashlight uses Lights. Cell towers, GPS satellites, GSM signal and WiFi networks share the Reception prefix. These are name groups, not custom subpanels. Remaining state/diagnostic entity IDs and user-customized names are preserved, including on reload; custom names may sort outside the default groups. Example IDs below retain their original bases.
 
 Zone, DND and alarm sensors show configuration; edit them through Configure as described above, not by clicking the read-only sensor state. Structured `myki.set_safe_zone`, `myki.set_dnd` and `myki.set_alarm` actions remain available for automation.
 

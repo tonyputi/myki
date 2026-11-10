@@ -72,7 +72,7 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 
 **Implemented** means code/tests exist; **partial** means coverage differs; **missing** means no shared control yet; **decision** means scope or safety must be settled, not silently omitted. Every future cloud control must preserve other settings, display confirmed readback and report failures without exposing personal data.
 
-All tracker settings are available from **MyKi → Configure → Tracker settings**, using one selected tracker and native sections for contacts, audio/LED, device/battery, map-based zones and schedules. Forms read fresh cloud values and save only on submission; HA options store no tracker preferences. The old editable device-page entities are disabled on migration and by default for new entries, with IDs retained for explicit compatibility opt-in. Status/diagnostic entities and quick commands remain on the device page.
+All tracker settings are available from **MyKi → Configure → Tracker settings**, using one selected tracker and native sections for contacts, audio/LED, device/battery, map-based zones and schedules. Forms read fresh cloud values and save only on submission; HA options store no tracker preferences. The old editable device-page entities, their platform implementations and entity translations are removed, with scoped registry cleanup on setup; there is no hidden compatibility editor or opt-in path. Status/diagnostic entities and quick commands remain on the device page.
 
 | App capability | HA status / intended disposition | Evidence and tracking |
 |---|---|---|
@@ -88,7 +88,7 @@ All tracker settings are available from **MyKi → Configure → Tracker setting
 | HA Call contact selector / Call me button | Removed: no equivalent shared MyKi setting; saved local options and registry entries are cleaned up without cloud writes | #27; explicit `myki.make_call` action remains, with a target supplied per execution |
 | Find tracker | Implemented button and entity action | `ApiInterface.findTracker`, integration button/tracker platforms |
 | Live tracking / RTT | Implemented command and countdown; exact duration units and limits remain unverified | `ApiInterface.startRealTimeTracking`, #29 |
-| Ring volume and call volume | Implemented native volume editor with stale/offline checks, serialized writes and confirmed readback; legacy number IDs retained but disabled by default | `PersonalizeFragment`, #41 |
+| Ring volume and call volume | Implemented native volume editor with stale/offline checks, serialized writes and confirmed readback; obsolete number controls and their registry entries are removed | `PersonalizeFragment`, #41 |
 | Global ring mode: sound+vibration / sound / vibration / mute | Implemented native cloud-backed editor; app profile values 1/2/3/4, no saved HA preference | `PersonalizeFragment.setRightView/changeSoundProfile`, #41 |
 | Global ringtone: Classic / Playtime / Twinkle | Implemented native cloud-backed editor; app values 0/1/2; absent cloud field uses the app's Classic initial value | `PersonalizeFragment.setRightView/setRingtone`, #41 |
 | Status LED switch | Implemented native editor: default=1, disabled=0; temporary party=2 leaves the choice unselected and is never offered as a status preference | `PersonalizeFragment`, `HomeActivity` LED constants, #41 |

@@ -9,27 +9,7 @@ from .api import MykiClient
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 from .coordinator import MykiConfigEntry, MykiCoordinator
 
-PLATFORMS = ("binary_sensor", "button", "device_tracker", "event", "number", "select", "sensor", "switch", "text")
-
-
-async def async_migrate_entry(hass: HomeAssistant, entry: MykiConfigEntry) -> bool:
-    """Move old settings controls out of the device page without deleting IDs."""
-    if entry.version != 1:
-        return False
-    if entry.minor_version < 2:
-        registry = er.async_get(hass)
-        suffixes = {
-            "number": ("_volume_ring", "_volume_call"),
-            "select": ("_ring_mode", "_ringtone", "_mode"),
-            "switch": ("_status_led", "_battery_save_mode"),
-            "text": ("_tracker_nickname", "_sim_phone", *(f"_sos_{i}" for i in range(1, 4)), *(f"_whitelist_{i}" for i in range(1, 8))),
-        }
-        for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-            if entity.platform == "myki" and entity.unique_id.endswith(suffixes.get(entity.domain, ())):
-                if entity.disabled_by is None:
-                    registry.async_update_entity(entity.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION)
-        hass.config_entries.async_update_entry(entry, minor_version=2)
-    return True
+PLATFORMS = ("binary_sensor", "button", "device_tracker", "event", "sensor", "switch")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MykiConfigEntry) -> None:
@@ -44,14 +24,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: MykiConfigEntry) -> None
     )
     await coordinator.async_config_entry_first_refresh()
 
-    # Remove retired HA-only calling preferences and entities, never cloud contacts.
+    # Remove retired settings/calling entities, never cloud settings or contacts.
     options = {key: value for key, value in entry.options.items() if key not in ("call_me_number", "call_contacts")}
     if options != entry.options:
         hass.config_entries.async_update_entry(entry, options=options)
     registry = er.async_get(hass)
     for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
         if entity.platform == "myki" and (
-            (entity.domain == "select" and entity.unique_id.endswith("_call_contact"))
+            entity.domain in ("number", "select", "text")
+            or (entity.domain == "switch" and entity.unique_id.endswith(("_status_led", "_battery_save_mode")))
             or (entity.domain == "button" and entity.unique_id.endswith("_call_me"))
         ):
             registry.async_remove(entity.entity_id)

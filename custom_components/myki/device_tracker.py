@@ -7,7 +7,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_get
 import voluptuous as vol
 
 from .api import MykiError
-from .const import ATTR_PHONE, SERVICE_FIND, SERVICE_MAKE_CALL
+from .const import SERVICE_FIND, SERVICE_MAKE_CALL
 from .contacts import CONTACT_SLOTS
 from .coordinator import MykiConfigEntry, MykiCoordinator
 from .entity import MykiEntity
@@ -15,8 +15,7 @@ from .settings import WEEKDAYS, read_group
 from .utils import get_position, get_zone
 
 MAKE_CALL_SCHEMA = {
-    vol.Exclusive(ATTR_PHONE, "target"): str,
-    vol.Exclusive("contact", "target"): vol.In(CONTACT_SLOTS),
+    vol.Required("contact"): vol.In(CONTACT_SLOTS),
 }
 
 
@@ -71,10 +70,10 @@ class MykiTrackerEntity(MykiEntity, TrackerEntity):
         except MykiError as err:
             raise HomeAssistantError(f"MyKi find failed: {err}") from err
 
-    async def async_make_call(self, phone: str | None = None, contact: str | None = None) -> None:
-        """Call a shared slot; retain phone-based automations only for shared numbers."""
+    async def async_make_call(self, contact: str) -> None:
+        """Call the selected shared slot using its current cloud number."""
         try:
-            await self.coordinator.async_call_contact(self.watch_id, contact, phone=phone)
+            await self.coordinator.async_call_contact(self.watch_id, contact)
         except MykiError as err:
             await self.coordinator.async_request_refresh()
             raise HomeAssistantError(f"MyKi call failed: {err}") from err

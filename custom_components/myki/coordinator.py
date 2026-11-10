@@ -226,19 +226,14 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
                 raise MykiError("tracker is offline; command was not sent")
             await self.client.device_command(watch_id, command)
 
-    async def async_call_contact(self, watch_id: str, slot: str | None = None, *, phone: str | None = None) -> None:
+    async def async_call_contact(self, watch_id: str, slot: str) -> None:
         """Resolve the slot again immediately before calling; never cache its number."""
-        if slot is not None and slot not in CONTACT_SLOTS:
+        if slot not in CONTACT_SLOTS:
             raise MykiError("invalid contact slot")
         async with self._contact_lock:
             app = await self.client.app_data(watch_id)
             self._publish_contacts(watch_id, app)
             contacts = contact_numbers(app)
-            if slot is None and phone:
-                normalized = normalize_phone(phone)
-                slot = next((key for key in CONTACT_SLOTS if normalize_phone(contacts[key]) == normalized), None)
-            if slot is None:
-                raise MykiError("choose an existing shared contact")
             number = contacts[slot]
             if not number:
                 raise MykiError("contact slot is empty")
