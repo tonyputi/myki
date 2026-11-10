@@ -30,6 +30,13 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 | `select.<kid>_ring_mode` | Shared sound/vibration mode (config) |
 | `select.<kid>_ringtone` | Shared Classic / Playtime / Twinkle ringtone (config) |
 | `switch.<kid>_status_led` | Shared default status LED indication (config) |
+| `switch.<kid>_flashlight` | App flashlight / temporary LED command |
+| `switch.<kid>_battery_save` | Shared battery-saving mode (config) |
+| `select.<kid>_operating_mode` | SOS button / Pet tracker / Asset tracker mode (config) |
+| `sensor.<kid>_safe_zone_1` / `_safe_zone_2` | Shared zone name; coordinates, radius in meters, enabled state and ring mode as attributes |
+| `sensor.<kid>_do_not_disturb` | First DND period; all four cloud periods as attributes |
+| `sensor.<kid>_alarm_1` … `_alarm_3` | Shared alarm time; enabled state and selected weekdays as attributes |
+| `text.<kid>_tracker_nickname` / `text.<kid>_sim_phone_number` | Shared cloud tracker nickname / SIM number (config) |
 | `text.<kid>_sos_1` … `sos_3` | Shared MyKi SOS numbers (config) |
 | `text.<kid>_whitelist_1` … `whitelist_7` | Shared app-visible whitelist numbers (config) |
 
@@ -73,9 +80,79 @@ Ring mode, ringtone and status LED read the same global command-state fields as 
 
 Each change reads the current cloud state, rejects a stale edit or offline tracker, writes only the selected setting and requires matching cloud readback. Missing/unsupported values display `unknown` and are not silently replaced. No optimistic state, automatic retry or rollback is used; after an uncertain result, refresh and inspect the app before retrying. Local commands and polling are serialized, but the vendor API has no conditional writes to prevent simultaneous app edits atomically.
 
-The LED switch sends **1** for default status indication or **0** for disabled, never the temporary LED-party value **2**. During temporary mode, the switch displays `unknown` because the stored default preference cannot be inferred; an explicit on/off action replaces that mode. The switch does not promise a continuously lit LED.
+The status LED switch sends **1** for default status indication or **0** for disabled, never the temporary LED-party value **2**. During temporary mode, the switch displays `unknown` because the stored default preference cannot be inferred; an explicit on/off action replaces that mode. The switch does not promise a continuously lit LED.
 
 These are global settings, not per-zone melodies. Safe-zone profiles are left untouched; hardware precedence with zones/DND and app/cloud/tracker round-trip behavior remain unverified under #41. Cloud readback is not proof that the physical tracker has applied a change. No automatic sound preview is played.
+
+## Remaining shared Spot settings
+
+The app's quick settings are shortcuts, not duplicate settings. Battery save and operating mode use cloud `settings.battery_save_mode` (0/1) and `settings.mode` (`sos`/`pet`/`asset`). Selecting a mode changes device behavior, not its hardware model. The app describes Asset mode as WiFi/LBS positioning with on-demand GPS and optional disabled calls; do not assume identical reporting, call availability or battery life between modes. After a mode change, the integration checks known contacts, zones and other configuration for unexpected changes and reports them without attempting rollback. Cloud readback cannot prevent device-side side effects.
+
+The separate flashlight switch follows the app's temporary LED command: on sends **2**, off restores default **1** only when the flashlight was active. It does not remember a previous LED preference; switching an already-off flashlight off leaves a disabled status LED alone. Temporary-mode expiry and hardware effects need final verification.
+
+Use **Developer Tools → Actions** for structured zone and schedule edits. Each action targets a MyKi `device_tracker`, reads fresh state, rejects stale/offline edits, preserves unedited siblings and unknown zone fields, and verifies cloud readback. Omit fields to keep their current cloud values. No local schedule, cached enable-time preference, automatic retry or rollback is created. Empty/malformed schedules are not replaced with invented defaults.
+
+```yaml
+# Change only the first official zone radius and ring mode.
+action: myki.set_safe_zone
+target:
+  entity_id: device_tracker.child
+data:
+  zone: safe_zone_1
+  radius: 70  # meters; cloud kilometers are converted internally
+  ring_mode: "4"  # 1 sound+vibration, 2 sound, 3 vibration, 4 mute
+```
+
+`myki.set_safe_zone` also accepts `name`, `latitude`, `longitude` and `enabled`. Only official slots `safe_zone_1` and `safe_zone_2` are writable. Creating an empty slot requires all fields explicitly. Zone color is stored on the Android phone, not in the examined zone cloud write; it is not exposed as a fake shared setting.
+
+```yaml
+action: myki.set_dnd
+target:
+  entity_id: device_tracker.child
+data:
+  enabled: true
+  start: "08:00"
+  end: "13:00"
+```
+
+DND edits **period 1 only**, preserving periods 2–4. Disabling writes the app sentinel `00:00-00:00`; other periods can still restrict calls. Both times are needed to re-enable a disabled period, because HA does not store a separate remembered interval. Equal start/end times are rejected when enabling. Overnight ranges are serialized without timezone conversion; physical overnight, DST and timezone behavior remain unverified. The app says DND restricts incoming calls while alarms remain active; this is app guidance, not a hardware-tested guarantee.
+
+```yaml
+action: myki.set_alarm
+target:
+  entity_id: device_tracker.child
+data:
+  alarm: alarm_1
+  enabled: true
+  time: "07:00"
+  weekdays: [mon, tue, wed, thu, fri]
+```
+
+Alarms accept `alarm_1`–`alarm_3`. Weekdays use `sun`, `mon`, `tue`, `wed`, `thu`, `fri`, `sat`; enabling requires at least one selected day. The app's opaque alarm field and freshly read sibling slots are preserved. All times are minute-precision tracker wall-clock times (`HH:MM`), not HA-local or UTC timestamps. These configure tracker alarms, not HA alarm automations.
+
+The tracker nickname and SIM-number text entities edit the vendor account's device metadata through the app's paired write, preserving the freshly read other field. This does not reprogram a SIM, change an SOS contact or dial a call. Phone numbers require digits with an optional leading `+`; missing/invalid paired data is not silently replaced. Existing HA device/entity names and user customizations are not forcibly renamed; HA's default device name is refreshed on integration reload. Editing an HA display name alone still does not change the cloud nickname.
+
+### Explicit power actions
+
+`myki.power_off` and `myki.restart` require `confirm: true` on every execution. They are actions, not ordinary dashboard buttons or custom confirmation dialogs. **Power off stops tracking/calls and requires physical access to turn the tracker on; no remote power-on is known.** Restart temporarily interrupts service and could require physical recovery. Request success means cloud acceptance, not verified shutdown, reboot or configuration retention; HA does not optimistically mark the tracker offline or retry an uncertain command. Never schedule these as an unattended safety mechanism.
+
+Factory reset and account-device deletion remain app-only: potential configuration loss, re-pairing/unlinking and recovery are not sufficiently established for safe HA exposure. They have no HA action or button. Account administration, provisioning and full vendor historical browsing remain app-managed; HA entity rename does not change the vendor nickname, and Recorder is not vendor history backfill.
+
+### Phone notifications are separate
+
+The app's Zone in, Zone out, Low battery and SOS pressed switches control the Android phone's notification registration. They are not shared tracker switches: HA does not read/change that phone registration, extract FCM tokens or impersonate the phone. HA can independently automate from computed zone changes, battery/online sensors and polled vendor events; this is not equivalent to real-time vendor push. No vendor event-name strings are assumed from translated on-screen messages.
+
+### One final acceptance check
+
+After human merge, normal release/HACS installation and an approved HA Core restart, perform one controlled validation session instead of testing between feature PRs:
+
+1. Read-only app/HA comparison on both trackers: contacts, both zones, modes, battery saving, audio/LED and schedules.
+2. Separately authorize each reversible write on one tracker, record the original value, confirm HA→app and app→HA behavior, verify unrelated settings and restore it. Avoid simultaneous edits from HA/app.
+3. Check zone/ring-mode precedence and restoration, tracker timezone/DST/overnight schedules, weekday ordering and actual alarm/LED behavior. Cloud storage alone is not hardware proof.
+4. Contact writes, calls/SOS, sounds, flashlight, mode changes and power actions need explicit scope before execution. Power-off/restart recovery must be arranged first. Factory reset and deletion are excluded.
+5. Record results against the existing work items, and close only the acceptance criteria actually verified. Other backends, extra zones, Core submission, publication and sponsorship are separate future work, not blockers for this Spot batch.
+
+Private screenshots, account details, phone numbers and real locations must not be published in issues, tests or documentation. The new zone/schedule state attributes are visible to HA users and may be stored by Recorder; apply the same privacy/access controls as tracker locations and contacts.
 
 ## Attach a tracker to a person
 

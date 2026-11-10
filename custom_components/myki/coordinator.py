@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import MykiAuthError, MykiClient, MykiError
 from .const import PERSONALIZATION_OPTIONS
 from .contacts import CONTACT_SLOTS, contact_numbers, normalize_phone
+from .settings import edit_group, read_group, scalar_setting
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -102,20 +103,96 @@ class MykiCoordinator(DataUpdateCoordinator[MykiData]):
         async with self._contact_lock:
             app = await self.client.app_data(watch_id)
             self._publish_contacts(watch_id, app)
-            current = str((app.get("commands") or {}).get(key))
-            if current not in PERSONALIZATION_OPTIONS[key] and not (key == "led" and current == "2"):
+            current = scalar_setting(app, key)
+            if current not in PERSONALIZATION_OPTIONS[key] and not (
+                (key == "led" and current == "2") or (key == "flashlight" and current == "0")
+            ):
                 raise MykiError("personalization data is invalid; refresh before editing")
             if current != expected:
                 raise MykiError("setting changed in MyKi; refresh and try again")
-            if current == value:
+            if current == value or (key == "flashlight" and value == "1" and current == "0"):
                 return
             if str((app.get("settings") or {}).get("online")) != "1":
                 raise MykiError("tracker is offline; setting was not changed")
+            protected = {
+                (section, field): val
+                for section in ("settings", "commands")
+                for field, val in (app.get(section) or {}).items()
+                if field.startswith(("safe_zone_", "sos_phone_", "whitelist_"))
+                or field in ("silencetime", "remind", "profile", "ringtone", "volume_ring", "volume_call", "led", "battery_save_mode", "nickname", "msisdn")
+            } if key == "mode" else {}
             await self.client.set_personalization(watch_id, key, value)
             confirmed = await self.client.app_data(watch_id)
             self._publish_contacts(watch_id, confirmed)
-            if str((confirmed.get("commands") or {}).get(key)) != value:
+            if scalar_setting(confirmed, key) != value:
                 raise MykiError("setting update was not confirmed by MyKi; refresh before retrying")
+            if any((confirmed.get(section) or {}).get(field) != val for (section, field), val in protected.items()):
+                raise MykiError("mode changed other configuration; inspect MyKi before continuing")
+
+    async def async_edit_setting_group(
+        self, watch_id: str, key: str, changes: dict, expected: dict | str,
+        index: int | None = None,
+    ) -> None:
+        """Read/modify/write one app setting; preserve freshly read sibling slots."""
+        async with self._contact_lock:
+            app = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, app)
+            try:
+                current = read_group(app, key)
+                if index is not None and (isinstance(index, bool) or not isinstance(index, int) or not isinstance(current, list) or not 0 <= index < len(current)):
+                    raise ValueError("invalid schedule slot")
+                selected = current[index] if index is not None else current
+                if selected != expected:
+                    raise ValueError("setting changed in MyKi; refresh and try again")
+                requested = edit_group(key, current, changes, index)
+            except (ValueError, TypeError, OverflowError) as err:
+                raise MykiError(str(err)) from None
+            if requested == current:
+                return
+            if str((app.get("settings") or {}).get("online")) != "1":
+                raise MykiError("tracker is offline; setting was not changed")
+            await self.client.set_setting_group(watch_id, key, requested)
+            confirmed = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, confirmed)
+            try:
+                readback = read_group(confirmed, key)
+            except ValueError:
+                raise MykiError("setting readback is invalid; refresh before retrying") from None
+            if readback != requested:
+                raise MykiError("setting update was not confirmed by MyKi; refresh before retrying")
+
+    async def async_set_tracker_detail(self, watch_id: str, key: str, value: str, expected: str) -> None:
+        """Edit one cloud metadata field, preserving the freshly read paired field."""
+        if key not in ("nickname", "msisdn"):
+            raise MykiError("invalid tracker detail")
+        async with self._contact_lock:
+            app = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, app)
+            settings = app.get("settings") or {}
+            details = {field: settings.get(field) for field in ("nickname", "msisdn")}
+            if details[key] != expected:
+                raise MykiError("tracker details changed in MyKi; refresh and try again")
+            if details[key] == value:
+                return
+            if str(settings.get("online")) != "1":
+                raise MykiError("tracker is offline; details were not changed")
+            details[key] = value
+            await self.client.set_tracker_details(watch_id, details["nickname"], details["msisdn"])
+            confirmed = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, confirmed)
+            if any((confirmed.get("settings") or {}).get(field) != requested for field, requested in details.items()):
+                raise MykiError("tracker details were not confirmed by MyKi; refresh before retrying")
+
+    async def async_device_command(self, watch_id: str, command: str, confirm: bool) -> None:
+        """Require explicit acknowledgement; API acceptance is not hardware completion."""
+        if confirm is not True or command not in ("poweroff", "reset"):
+            raise MykiError("explicit confirmation is required for this device command")
+        async with self._contact_lock:
+            app = await self.client.app_data(watch_id)
+            self._publish_contacts(watch_id, app)
+            if str((app.get("settings") or {}).get("online")) != "1":
+                raise MykiError("tracker is offline; command was not sent")
+            await self.client.device_command(watch_id, command)
 
     async def async_call_contact(self, watch_id: str, slot: str | None = None, *, phone: str | None = None) -> None:
         """Resolve the slot again immediately before calling; never cache its number."""

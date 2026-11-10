@@ -61,7 +61,7 @@ def get_safe_zones(app_data: dict[str, Any]) -> list[dict[str, Any]] | None:
             radius = float(zone["radius"])
         except (KeyError, TypeError, ValueError, OverflowError):
             return None
-        if not (-90 <= lat <= 90 and -180 <= lon <= 180 and math.isfinite(radius) and radius > 0):
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180 and math.isfinite(radius * 1000) and radius > 0):
             return None
         zones.append(
             {

@@ -40,6 +40,24 @@
   "entity": {
     "device_tracker": {},
     "sensor": {
+      "safe_zone_1": {
+        "name": "Safe zone 1"
+      },
+      "safe_zone_2": {
+        "name": "Safe zone 2"
+      },
+      "dnd": {
+        "name": "Do not disturb"
+      },
+      "alarm_1": {
+        "name": "Alarm 1"
+      },
+      "alarm_2": {
+        "name": "Alarm 2"
+      },
+      "alarm_3": {
+        "name": "Alarm 3"
+      },
       "zone": {
         "name": "Zone",
         "state": {
@@ -98,6 +116,14 @@
       }
     },
     "select": {
+      "mode": {
+        "name": "Operating mode",
+        "state": {
+          "sos": "SOS button",
+          "pet": "Pet tracker",
+          "asset": "Asset tracker"
+        }
+      },
       "ring_mode": {
         "name": "Ring mode",
         "state": {
@@ -117,11 +143,23 @@
       }
     },
     "switch": {
+      "battery_save_mode": {
+        "name": "Battery save"
+      },
+      "flashlight": {
+        "name": "Flashlight"
+      },
       "status_led": {
         "name": "Status LED"
       }
     },
     "text": {
+      "tracker_nickname": {
+        "name": "Tracker nickname"
+      },
+      "sim_phone": {
+        "name": "SIM phone number"
+      },
       "sos_1": {
         "name": "SOS 1"
       },
@@ -155,6 +193,84 @@
     }
   },
   "services": {
+    "power_off": {
+      "name": "Power off tracker",
+      "description": "Stop tracking and calls. Physical access is needed to power on; no remote power-on is known. Success means cloud acceptance only.",
+      "fields": {
+        "confirm": {
+          "name": "I understand physical access is required to power the tracker back on"
+        }
+      }
+    },
+    "restart": {
+      "name": "Restart tracker",
+      "description": "Request a reboot, temporarily interrupting tracking and calls. Not a factory reset. Cloud acceptance does not prove reboot or configuration retention.",
+      "fields": {
+        "confirm": {
+          "name": "I accept the interruption and can physically recover the tracker if needed"
+        }
+      }
+    },
+    "set_safe_zone": {
+      "name": "Set safe zone",
+      "description": "Edit one MyKi zone, preserving omitted fields. Radius in meters.",
+      "fields": {
+        "zone": {
+          "name": "Zone slot"
+        },
+        "name": {
+          "name": "Zone name"
+        },
+        "latitude": {
+          "name": "Latitude"
+        },
+        "longitude": {
+          "name": "Longitude"
+        },
+        "radius": {
+          "name": "Radius (meters)"
+        },
+        "enabled": {
+          "name": "Enabled"
+        },
+        "ring_mode": {
+          "name": "Ring mode"
+        }
+      }
+    },
+    "set_dnd": {
+      "name": "Set Do not disturb",
+      "description": "Edit the first period, preserving the other three. Tracker HH:MM wall-clock times, without timezone conversion.",
+      "fields": {
+        "enabled": {
+          "name": "Enabled"
+        },
+        "start": {
+          "name": "Start time (HH:MM)"
+        },
+        "end": {
+          "name": "End time (HH:MM)"
+        }
+      }
+    },
+    "set_alarm": {
+      "name": "Set alarm",
+      "description": "Edit one shared alarm, preserving other slots. Tracker HH:MM wall-clock times, without timezone conversion.",
+      "fields": {
+        "alarm": {
+          "name": "Alarm slot"
+        },
+        "enabled": {
+          "name": "Enabled"
+        },
+        "time": {
+          "name": "Time (HH:MM)"
+        },
+        "weekdays": {
+          "name": "Weekdays (sun–sat)"
+        }
+      }
+    },
     "find": {
       "name": "Find tracker",
       "description": "Make the tracker ring so you can locate it."

@@ -41,3 +41,149 @@ make_call:
       example: "+15555550100"
       selector:
         text:
+
+set_safe_zone:
+  name: Set safe zone
+  description: Edit one official MyKi zone. Omitted fields and unknown cloud fields are preserved; radius is in meters.
+  target:
+    entity:
+      integration: myki
+      domain: device_tracker
+  fields:
+    zone:
+      name: Zone slot
+      required: true
+      selector:
+        select:
+          options: [safe_zone_1, safe_zone_2]
+    name:
+      name: Zone name
+      selector:
+        text:
+    latitude:
+      name: Latitude
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: any
+          mode: box
+    longitude:
+      name: Longitude
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: any
+          mode: box
+    radius:
+      name: Radius
+      description: Radius in meters, not the cloud API kilometer unit.
+      selector:
+        number:
+          min: 0.001
+          mode: box
+          unit_of_measurement: m
+    enabled:
+      name: Enabled
+      selector:
+        boolean:
+    ring_mode:
+      name: Ring mode
+      selector:
+        select:
+          options:
+            - label: Sound and vibration
+              value: "1"
+            - label: Sound only
+              value: "2"
+            - label: Vibration only
+              value: "3"
+            - label: Mute
+              value: "4"
+
+set_dnd:
+  name: Set Do not disturb
+  description: Edit the first cloud DND period, preserving the other three. Times are tracker wall-clock times; no HA timezone conversion.
+  target:
+    entity:
+      integration: myki
+      domain: device_tracker
+  fields:
+    enabled:
+      name: Enabled
+      required: true
+      selector:
+        boolean:
+    start:
+      name: Start time
+      description: HH:MM. Required with end when enabling a disabled period.
+      example: "08:00"
+      selector:
+        text:
+    end:
+      name: End time
+      description: HH:MM, distinct from start. Required with start when enabling a disabled period.
+      example: "13:00"
+      selector:
+        text:
+
+set_alarm:
+  name: Set alarm
+  description: Edit one of the three shared alarms. Omitted fields and other alarm slots are preserved; times are tracker wall-clock times.
+  target:
+    entity:
+      integration: myki
+      domain: device_tracker
+  fields:
+    alarm:
+      name: Alarm slot
+      required: true
+      selector:
+        select:
+          options: [alarm_1, alarm_2, alarm_3]
+    enabled:
+      name: Enabled
+      selector:
+        boolean:
+    time:
+      name: Time
+      description: HH:MM, with no timezone conversion.
+      example: "07:00"
+      selector:
+        text:
+    weekdays:
+      name: Weekdays
+      description: At least one day is required for an enabled alarm.
+      selector:
+        select:
+          multiple: true
+          options: [sun, mon, tue, wed, thu, fri, sat]
+
+power_off:
+  name: Power off tracker
+  description: Stop tracking and calls until the device is physically powered on. No remote power-on is known. Success means cloud acceptance only; no automatic retry.
+  target:
+    entity:
+      integration: myki
+      domain: device_tracker
+  fields:
+    confirm:
+      name: I understand physical access is required to power the tracker back on
+      required: true
+      selector:
+        boolean:
+
+restart:
+  name: Restart tracker
+  description: Request a reboot, temporarily interrupting tracking and calls. This is not a factory reset. Cloud acceptance does not confirm reboot or configuration retention.
+  target:
+    entity:
+      integration: myki
+      domain: device_tracker
+  fields:
+    confirm:
+      name: I accept the interruption and can physically recover the tracker if needed
+      required: true
+      selector:
+        boolean:

@@ -20,7 +20,7 @@ def app_data(zone: dict) -> dict:
 @pytest.mark.parametrize("field,value", [
     ("lat", None), ("lat", "invalid"), ("lat", "nan"), ("lat", 91),
     ("lon", "inf"), ("lon", -181), ("radius", None), ("radius", "nan"),
-    ("radius", "inf"), ("radius", -1), ("radius", 0),
+    ("radius", "inf"), ("radius", -1), ("radius", 0), ("radius", 1e308),
     ("active", "invalid"), ("active", 2), ("active", 0.5),
 ])
 def test_invalid_zone_is_unknown(field, value):
