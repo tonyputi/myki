@@ -72,29 +72,31 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 
 **Implemented** means code/tests exist; **partial** means coverage differs; **missing** means no shared control yet; **decision** means scope or safety must be settled, not silently omitted. Every future cloud control must preserve other settings, display confirmed readback and report failures without exposing personal data.
 
+All tracker settings are available from **MyKi → Configure → Tracker settings**, using one selected tracker and native sections for contacts, audio/LED, device/battery, map-based zones and schedules. Forms read fresh cloud values and save only on submission; HA options store no tracker preferences. The old editable device-page entities, their platform implementations and entity translations are removed, with scoped registry cleanup on setup; there is no hidden compatibility editor or opt-in path. Status/diagnostic entities and quick commands remain on the device page.
+
 | App capability | HA status / intended disposition | Evidence and tracking |
 |---|---|---|
 | Tracker list and per-tracker live map | Implemented: one HA device and `device_tracker` per tracker; polling defaults to 60 s, not the app's 10 s | `MainMapFragment`, integration coordinator; no custom replica of the app map |
 | Battery, online status, current steps | Implemented sensors; hardware reporting delay still applies | `TrackerInformationHandler`, integration sensor platforms |
-| Two safe zones: name, coordinates, radius, enabled state | Implemented: computed zone sensor plus cloud configuration sensors and structured `myki.set_safe_zone` action; preserves unknown fields and other slots | `SafeZonesFragment`, #28 |
+| Two safe zones: name, coordinates, radius, enabled state | Implemented: native map/radius configuration form, computed zone sensor, cloud summary sensors and structured `myki.set_safe_zone` action; preserves unknown fields and other slots | `SafeZonesFragment`, #28 |
 | Sound/vibration profile per safe zone | Implemented through `myki.set_safe_zone` ring_mode 1–4; not a per-zone melody | `SafeZonesFragment.addSafeZone/setValuesToControllersAndDrawZone`, #28 |
-| SOS numbers 1–3 | Implemented shared text slots; physical round-trip remains pending | `SosAndWhitelistFragment`, #27 / merged #40 |
-| Whitelist numbers 1–7 | Implemented shared text slots; preserve all ten cloud positions, including hidden 8–10 | Same sources and #27; do not erase hidden slots |
+| SOS numbers 1–3 | Implemented shared contact editor; physical round-trip remains pending | `SosAndWhitelistFragment`, #27 / merged #40 |
+| Whitelist numbers 1–7 | Implemented shared contact editor; preserve all ten cloud positions, including hidden 8–10 | Same sources and #27; do not erase hidden slots |
 | Android phonebook picker | App imports a phone number; not a second named cloud contact book | `SosAndWhitelistFragment.getContactPhone`, #27 |
 | Physical SOS button dialing | Ordered slots are preserved. Screenshot help says holding SOS more than 6 seconds starts sequential calls to the SOS list; firmware fallback/retry and successful physical dialing remain unverified | #27; do not test emergency calls without explicit approval |
 | App command to make tracker call a number | Implemented `myki.make_call`; HA resolves an existing shared slot | `DialogAskForPhoneNumberToCallFragment`, #27 |
 | HA Call contact selector / Call me button | Removed: no equivalent shared MyKi setting; saved local options and registry entries are cleaned up without cloud writes | #27; explicit `myki.make_call` action remains, with a target supplied per execution |
 | Find tracker | Implemented button and entity action | `ApiInterface.findTracker`, integration button/tracker platforms |
 | Live tracking / RTT | Implemented command and countdown; exact duration units and limits remain unverified | `ApiInterface.startRealTimeTracking`, #29 |
-| Ring volume and call volume | Implemented number entities; retain existing IDs and readback behavior | `PersonalizeFragment`, #41 |
-| Global ring mode: sound+vibration / sound / vibration / mute | Implemented cloud-backed selector; app profile values 1/2/3/4, no saved HA preference | `PersonalizeFragment.setRightView/changeSoundProfile`, #41 |
-| Global ringtone: Classic / Playtime / Twinkle | Implemented cloud-backed selector; app values 0/1/2 | `PersonalizeFragment.setRightView/setRingtone`, #41 |
-| Status LED switch | Implemented: default=1, disabled=0; temporary party=2 reads unknown and is never sent by the switch | `PersonalizeFragment`, `HomeActivity` LED constants, #41 |
+| Ring volume and call volume | Implemented native volume editor with stale/offline checks, serialized writes and confirmed readback; obsolete number controls and their registry entries are removed | `PersonalizeFragment`, #41 |
+| Global ring mode: sound+vibration / sound / vibration / mute | Implemented native cloud-backed editor; app profile values 1/2/3/4, no saved HA preference | `PersonalizeFragment.setRightView/changeSoundProfile`, #41 |
+| Global ringtone: Classic / Playtime / Twinkle | Implemented native cloud-backed editor; app values 0/1/2; absent cloud field uses the app's Classic initial value | `PersonalizeFragment.setRightView/setRingtone`, #41 |
+| Status LED switch | Implemented native editor: default=1, disabled=0; temporary party=2 leaves the choice unselected and is never offered as a status preference | `PersonalizeFragment`, `HomeActivity` LED constants, #41 |
 | Flashlight | Implemented separate switch: temporary LED=2; off restores default=1, without locally remembering a prior preference | `HomeActivity` quick-settings handler; physical effects unverified |
-| Battery save | Implemented cloud-backed switch; app writes `battery_save_mode` 0/1 | `DialogBatterySaveModeFragment.batterySaveMode`, #42 |
-| SOS Button / Pet Tracker / Asset Tracker mode | Implemented cloud-backed mode selector with readback and unexpected known-configuration-change detection; not hardware models | `DeviceModeFromSettingsFragment`, `ChooseFunctionalityActivity`, #42 |
-| Do not disturb: enabled, start and end time | Implemented configuration sensor and `myki.set_dnd`; edits period 1, preserves the other three; tracker wall-clock times without HA timezone conversion | `DNDFragment`, #43 |
-| Alarms 1–3: enabled, time, weekdays | Implemented configuration sensors and `myki.set_alarm`; preserves fresh sibling slots and opaque alarm digit; Sunday-first app weekday order | `Alarm`, `AlarmSetFragment`, `AlarmsListFragment`, #43 |
+| Battery save | Implemented native cloud-backed editor; app writes `battery_save_mode` 0/1 | `DialogBatterySaveModeFragment.batterySaveMode`, #42 |
+| SOS Button / Pet Tracker / Asset Tracker mode | Implemented native cloud-backed mode editor with readback and unexpected known-configuration-change detection; not hardware models | `DeviceModeFromSettingsFragment`, `ChooseFunctionalityActivity`, #42 |
+| Do not disturb: enabled, start and end time | Implemented native time editor, summary sensor and `myki.set_dnd`; edits period 1, preserves the other three; tracker wall-clock times without HA timezone conversion | `DNDFragment`, #43 |
+| Alarms 1–3: enabled, time, weekdays | Implemented native time/weekday editor, summary sensors and `myki.set_alarm`; preserves fresh sibling slots and opaque alarm digit; Sunday-first app weekday order | `Alarm`, `AlarmSetFragment`, `AlarmsListFragment`, #43 |
 | Notifications: Zone in | App-only phone-push preference, not a shared tracker switch; HA computed zone transitions differ | `SettingsFragment`, `NotificationsHandler`, #44; HA example #30 |
 | Notifications: Zone out | App-only phone-registration scope; no HA↔phone preference synchronization | Same sources, #44 |
 | Notifications: Low battery | App-only phone-registration scope; HA battery sensor/event exists, automatic phone notification parity does not | Same sources, #44 |
@@ -103,7 +105,7 @@ Related family backend (other Allterco devices, app `com.allterco.mykifamily`): 
 | Restart | Explicit `myki.restart` action using watch/reset, requires confirm=true; cloud acceptance only, interruption and configuration retention remain physical checks | Same sources, #45 |
 | Factory reset | Deliberately app-only: potential configuration loss/re-pairing, recovery not sufficiently established; no HA endpoint/action | Same sources, #45 |
 | Delete device from MyKi account | Deliberately app-only: account unlinking/loss of tracking; recovery unknown and distinct from HA removal or hardware reset | Same sources, #45 |
-| Rename tracker / edit tracker SIM number | Implemented shared text entities; paired write preserves the fresh other field, rejects stale/offline edits and requires readback. Does not reprogram the SIM or overwrite HA custom names | `TrackerSettingsFragment.changeNameOrPhoneOfTracker`, `ApiInterface.changeTrackerNameOrPhone` |
+| Rename tracker / edit tracker SIM number | Implemented native shared metadata editor; paired write preserves the fresh other field, rejects stale/offline edits and requires readback. Does not reprogram the SIM or overwrite HA custom names | `TrackerSettingsFragment.changeNameOrPhoneOfTracker`, `ApiInterface.changeTrackerNameOrPhone` |
 | Add/register tracker | App-managed provisioning for now; HA discovers account trackers at setup/reload, dynamic-add behavior needs review | `ApiInterface.addNewTrackerToAccount`, #29 |
 | Daily position track history | Partial: HA Recorder only stores observed entity updates, not the complete vendor daily track | `ApiInterface.getTrackerHistoryPosition`, #29 |
 | Daily/all step history and retained event list UI | Partial: current steps/event entities exist; no replica of the vendor historical browsing UI | `ApiInterface`, #29; event timestamps/rotation remain bounded |

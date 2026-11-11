@@ -17,4 +17,3 @@ PERSONALIZATION_OPTIONS = {
 
 SERVICE_FIND = "find"
 SERVICE_MAKE_CALL = "make_call"
-ATTR_PHONE = "phone"

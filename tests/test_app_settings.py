@@ -116,8 +116,8 @@ def test_weekday_mapping_and_opaque_digit():
 
 async def test_cloud_configuration_states(hass, settings_entry):
     entry, cloud = settings_entry
-    assert hass.states.get("select.testkid0_operating_mode").state == "sos"
-    assert hass.states.get("switch.testkid0_battery_save").state == "off"
+    assert entry.runtime_data.data["test-0"]["app"]["settings"]["mode"] == "sos"
+    assert entry.runtime_data.data["test-0"]["app"]["settings"]["battery_save_mode"] == "0"
     assert hass.states.get("switch.testkid0_flashlight").state == "off"
     zone = hass.states.get("sensor.testkid0_safe_zone_1")
     assert zone.state == "Home"
@@ -133,18 +133,14 @@ async def test_cloud_configuration_states(hass, settings_entry):
     cloud["test-0"]["settings"]["battery_save_mode"] = None
     await entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
-    for entity in ("sensor.testkid0_alarm_1", "select.testkid0_operating_mode", "switch.testkid0_battery_save"):
-        assert hass.states.get(entity).state == "unknown"
+    assert hass.states.get("sensor.testkid0_alarm_1").state == "unknown"
+    assert hass.states.get("select.testkid0_operating_mode") is None
+    assert hass.states.get("switch.testkid0_battery_save") is None
     assert entry.options == {}
 
 
-@pytest.mark.parametrize("key,value,domain,service,entity,extra", [
-    ("battery_save_mode", "1", "switch", "turn_on", "switch.testkid0_battery_save", {}),
-    ("mode", "pet", "select", "select_option", "select.testkid0_operating_mode", {"option": "pet"}),
-    ("mode", "asset", "select", "select_option", "select.testkid0_operating_mode", {"option": "asset"}),
-    ("flashlight", "2", "switch", "turn_on", "switch.testkid0_flashlight", {}),
-])
-async def test_scalar_actions_target_and_confirm(hass, settings_entry, key, value, domain, service, entity, extra):
+@pytest.mark.parametrize("key,value", [("battery_save_mode", "1"), ("mode", "pet"), ("mode", "asset"), ("flashlight", "2")])
+async def test_scalar_actions_target_and_confirm(hass, settings_entry, key, value):
     entry, cloud = settings_entry
     before = deepcopy(cloud)
 
@@ -156,7 +152,10 @@ async def test_scalar_actions_target_and_confirm(hass, settings_entry, key, valu
         before[wid][section][field] = raw
 
     with patch.object(entry.runtime_data.client, "set_personalization", side_effect=write) as request:
-        await hass.services.async_call(domain, service, {"entity_id": entity, **extra}, blocking=True)
+        if key == "flashlight":
+            await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.testkid0_flashlight"}, blocking=True)
+        else:
+            await entry.runtime_data.async_set_personalization("test-0", key, value, APP["settings"][key])
         request.assert_awaited_once_with("test-0", key, value)
     assert cloud == before
     assert entry.options == {}
@@ -170,10 +169,8 @@ async def test_mode_side_effect_is_reported_without_rollback(hass, settings_entr
         cloud[wid]["commands"]["sos_phone_1"] = ""
 
     with patch.object(entry.runtime_data.client, "set_personalization", side_effect=write) as request:
-        with pytest.raises(HomeAssistantError, match="mode changed other configuration"):
-            await hass.services.async_call("select", "select_option", {
-                "entity_id": "select.testkid0_operating_mode", "option": "pet",
-            }, blocking=True)
+        with pytest.raises(MykiError, match="mode changed other configuration"):
+            await entry.runtime_data.async_set_personalization("test-0", "mode", "pet", "sos")
         request.assert_awaited_once()
     assert cloud["test-0"]["commands"]["sos_phone_1"] == ""
     assert cloud["test-0"]["settings"]["mode"] == "pet"
@@ -387,19 +384,16 @@ async def test_new_settings_use_cloud_after_reload_and_disappearance(hass, setti
     cloud["test-0"]["settings"]["mode"] = "asset"
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
-    assert hass.states.get("select.testkid0_operating_mode").state == "asset"
+    assert entry.runtime_data.data["test-0"]["app"]["settings"]["mode"] == "asset"
     assert entry.options == {}
     entry.runtime_data.async_set_updated_data({"test-1": entry.runtime_data.data["test-1"]})
     await hass.async_block_till_done()
-    for entity in ("select.testkid0_operating_mode", "switch.testkid0_battery_save", "switch.testkid0_flashlight", "sensor.testkid0_alarm_1", "sensor.testkid0_do_not_disturb", "sensor.testkid0_safe_zone_1"):
+    for entity in ("switch.testkid0_flashlight", "sensor.testkid0_alarm_1", "sensor.testkid0_do_not_disturb", "sensor.testkid0_safe_zone_1"):
         assert hass.states.get(entity).state == "unavailable"
 
 
-@pytest.mark.parametrize("key,value,entity", [
-    ("nickname", "Example renamed", "text.testkid0_tracker_nickname"),
-    ("msisdn", "+15555550102", "text.testkid0_sim_phone_number"),
-])
-async def test_shared_tracker_details_preserve_fresh_sibling(hass, settings_entry, key, value, entity):
+@pytest.mark.parametrize("key,value", [("nickname", "Example renamed"), ("msisdn", "+15555550102")])
+async def test_shared_tracker_details_preserve_fresh_sibling(hass, settings_entry, key, value):
     entry, cloud = settings_entry
     sibling = "msisdn" if key == "nickname" else "nickname"
     cloud["test-0"]["settings"][sibling] = "+15555550103" if sibling == "msisdn" else "App rename"
@@ -411,9 +405,9 @@ async def test_shared_tracker_details_preserve_fresh_sibling(hass, settings_entr
         before[wid]["settings"][key] = value
 
     with patch.object(entry.runtime_data.client, "set_tracker_details", side_effect=write) as request:
-        await hass.services.async_call("text", "set_value", {"entity_id": entity, "value": value}, blocking=True)
+        await entry.runtime_data.async_set_tracker_detail("test-0", key, value, APP["settings"][key])
         request.assert_awaited_once()
-    assert hass.states.get(entity).state == value
+    assert entry.runtime_data.data["test-0"]["app"]["settings"][key] == value
     assert cloud == before
     assert entry.options == {}
 
@@ -426,8 +420,8 @@ async def test_tracker_detail_failures(hass, settings_entry, failure):
     elif failure == "offline":
         cloud["test-0"]["settings"]["online"] = "0"
     with patch.object(entry.runtime_data.client, "set_tracker_details", side_effect=MykiError("rejected") if failure == "rejected" else None) as request:
-        with pytest.raises(HomeAssistantError):
-            await hass.services.async_call("text", "set_value", {"entity_id": "text.testkid0_tracker_nickname", "value": "Rename"}, blocking=True)
+        with pytest.raises(MykiError):
+            await entry.runtime_data.async_set_tracker_detail("test-0", "nickname", "Rename", APP["settings"]["nickname"])
         assert request.await_count == (0 if failure in ("stale", "offline") else 1)
 
 

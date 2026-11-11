@@ -5,7 +5,6 @@ from typing import Any
 from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
 )
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant, callback
@@ -13,12 +12,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
 
 from .api import MykiAuthError, MykiClient, MykiError
-from .const import (
-    CONF_SCAN_INTERVAL,
-    DEFAULT_SCAN_INTERVAL,
-    DOMAIN,
-    MIN_SCAN_INTERVAL,
-)
+from .const import DOMAIN
+from .options_flow import MykiOptionsFlow
 
 STEP_USER_SCHEMA = vol.Schema(
     {
@@ -89,22 +84,3 @@ class MykiConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={"email": entry.data[CONF_EMAIL]},
         )
-
-
-class MykiOptionsFlow(OptionsFlow):
-    """Options: polling interval."""
-
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        if user_input is not None:
-            return self.async_create_entry(title="", data={**self.config_entry.options, **user_input})
-        current = self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_SCAN_INTERVAL,
-                    default=current,
-                    description={"suggested_value": current},
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
-            }
-        )
-        return self.async_show_form(step_id="init", data_schema=schema)
