@@ -19,12 +19,9 @@ from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
 from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
-import voluptuous as vol
 
 from custom_components.myki.api import BASE_URL, MykiError
 from custom_components.myki.const import DOMAIN
-from custom_components.myki.contacts import contact_numbers
-from custom_components.myki.settings import scalar_setting
 
 WATCH_ID = "test-tracker"
 NICK = "TestKid"
@@ -74,7 +71,8 @@ def _mock_cloud(aioclient_mock: AiohttpClientMocker) -> None:
 async def _setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> MockConfigEntry:
     _mock_cloud(aioclient_mock)
     entry = MockConfigEntry(
-        domain=DOMAIN, data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
+        domain=DOMAIN,
+        data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
         unique_id="test@example.com",
     )
     entry.add_to_hass(hass)
@@ -99,6 +97,44 @@ async def test_setup_creates_entities(hass: HomeAssistant, aioclient_mock) -> No
     assert hass.states.get(f"sensor.{NICK.lower()}_zone").state == "Home"
     assert hass.states.get(f"sensor.{NICK.lower()}_steps_today").state == "4321"
     assert hass.states.get(f"binary_sensor.{NICK.lower()}_online").state == "on"
+
+
+async def test_restore_controls_after_registry_cleanup(hass: HomeAssistant, aioclient_mock) -> None:
+    """An existing v0.12 entry recreates deleted controls without cloud writes."""
+    _mock_cloud(aioclient_mock)
+    entry = MockConfigEntry(
+        domain=DOMAIN, version=1, minor_version=1,
+        data={CONF_EMAIL: "test@example.com", CONF_PASSWORD: "secret"},
+        options={"scan_interval": 120}, unique_id="test@example.com",
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    tracker = registry.async_get_or_create(
+        "device_tracker", DOMAIN, f"{WATCH_ID}_tracker", config_entry=entry,
+        suggested_object_id="my_tracker",
+    )
+    registry.async_update_entity(tracker.entity_id, name="My tracker location")
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    controls = [
+        "number.testkid_ring_volume", "number.testkid_call_volume",
+        "select.testkid_ring_mode", "select.testkid_ringtone", "select.testkid_operating_mode",
+        "switch.testkid_status_led", "switch.testkid_battery_save",
+        "text.testkid_tracker_nickname", "text.testkid_sim_phone_number",
+        *(f"text.testkid_sos_{i}" for i in range(1, 4)),
+        *(f"text.testkid_whitelist_{i}" for i in range(1, 8)),
+    ]
+    for entity_id in controls:
+        assert registry.async_get(entity_id).disabled_by is None
+        assert hass.states.get(entity_id) is not None
+    assert hass.states.get("number.testkid_ring_volume").state == "4"
+    assert hass.states.get("text.testkid_sos_1").state == "0015555550100"
+    assert hass.states.get(tracker.entity_id) is not None
+    assert registry.async_get(tracker.entity_id).name == "My tracker location"
+    assert entry.options == {"scan_interval": 120}
+    read_urls = {f"{BASE_URL}/watch", f"{BASE_URL}/watch/app-data", f"{BASE_URL}/watch/history/events"}
+    assert all(method == "GET" and str(url).split("?")[0] in read_urls for method, url, *_ in aioclient_mock.mock_calls)
 
 
 async def test_find_service(hass: HomeAssistant, aioclient_mock) -> None:
@@ -177,14 +213,17 @@ async def test_device_page_entities(hass: HomeAssistant, aioclient_mock) -> None
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
     assert any("watch/find" in u for u in urls)
 
-    # Tracker settings are edited in Configure, not duplicated on the device page.
-    registry = er.async_get(hass)
-    for control in ("ring_volume", "call_volume"):
-        entity_id = f"number.{NICK.lower()}_{control}"
-        assert hass.states.get(entity_id) is None
-        assert registry.async_get(entity_id) is None
-    assert hass.states.get(f"switch.{NICK.lower()}_flashlight") is not None
-    assert not any("callvolset" in str(url) for _, url, *_ in aioclient_mock.mock_calls)
+    # volume sliders reflect the payload and can be set
+    assert hass.states.get(f"number.{NICK.lower()}_ring_volume").state == "4"
+    assert hass.states.get(f"number.{NICK.lower()}_call_volume").state == "6"
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": f"number.{NICK.lower()}_call_volume", "value": 5},
+        blocking=True,
+    )
+    urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
+    assert any("callvolset" in u and "volume=5" in u for u in urls)
 
 
 async def test_rotated_events_produce_individual_state_changes(hass: HomeAssistant, aioclient_mock) -> None:
@@ -258,7 +297,7 @@ async def test_make_call_service(hass: HomeAssistant, aioclient_mock) -> None:
     await hass.services.async_call(
         "myki",
         "make_call",
-        {"entity_id": f"device_tracker.{NICK.lower()}", "contact": "sos_1"},
+        {"entity_id": f"device_tracker.{NICK.lower()}", "phone": "+15555550100"},
         blocking=True,
     )
     urls = [str(url) for _, url, *_ in aioclient_mock.mock_calls]
@@ -319,30 +358,40 @@ async def test_failed_button_is_reported(hass: HomeAssistant, aioclient_mock, bu
             )
 
 
-@pytest.mark.parametrize("key,method", [("volume_ring", "set_ring_volume"), ("volume_call", "set_call_volume")])
-async def test_failed_volume_write_keeps_confirmed_value(hass, aioclient_mock, key, method):
+@pytest.mark.parametrize("control,method", [
+    ("ring_volume", "set_ring_volume"), ("call_volume", "set_call_volume"),
+])
+async def test_failed_volume_write_keeps_confirmed_value(hass: HomeAssistant, aioclient_mock, control, method):
     entry = await _setup(hass, aioclient_mock)
-    expected = int(APP_DATA["data"]["commands"][key])
-    with patch.object(entry.runtime_data.client, method, side_effect=MykiError("rejected")) as write:
-        with pytest.raises(MykiError):
-            await entry.runtime_data.async_set_volume(WATCH_ID, key, 2, expected)
-        write.assert_awaited_once_with(WATCH_ID, 2)
-    assert entry.runtime_data.data[WATCH_ID]["app"]["commands"][key] == str(expected)
+    entity_id = f"number.{NICK.lower()}_{control}"
+    previous = hass.states.get(entity_id).state
+    with patch.object(entry.runtime_data.client, method, side_effect=MykiError("offline")):
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                "number", "set_value", {"entity_id": entity_id, "value": 3}, blocking=True
+            )
+    assert hass.states.get(entity_id).state == previous
 
 
-@pytest.mark.parametrize("key,method", [("volume_ring", "set_ring_volume"), ("volume_call", "set_call_volume")])
-async def test_volume_displays_cloud_readback(hass, aioclient_mock, key, method):
+@pytest.mark.parametrize("control,method,key", [
+    ("ring_volume", "set_ring_volume", "volume_ring"),
+    ("call_volume", "set_call_volume", "volume_call"),
+])
+async def test_volume_displays_cloud_readback(hass: HomeAssistant, aioclient_mock, control, method, key):
     entry = await _setup(hass, aioclient_mock)
     cloud_data = deepcopy(APP_DATA["data"])
     cloud_data["commands"][key] = "2"
     with (
         patch.object(entry.runtime_data.client, method) as write,
-        patch.object(entry.runtime_data.client, "app_data", side_effect=[deepcopy(APP_DATA["data"]), cloud_data]),
+        patch.object(entry.runtime_data.client, "app_data", return_value=cloud_data),
     ):
-        with pytest.raises(MykiError, match="not confirmed"):
-            await entry.runtime_data.async_set_volume(WATCH_ID, key, 3, int(APP_DATA["data"]["commands"][key]))
+        await hass.services.async_call(
+            "number", "set_value",
+            {"entity_id": f"number.{NICK.lower()}_{control}", "value": 3}, blocking=True,
+        )
+        await hass.async_block_till_done()
         write.assert_awaited_once_with(WATCH_ID, 3)
-    assert entry.runtime_data.data[WATCH_ID]["app"]["commands"][key] == "2"
+    assert hass.states.get(f"number.{NICK.lower()}_{control}").state == "2"
 
 
 @pytest.mark.parametrize("service,method", [("find", "find"), ("make_call", "make_call")])
@@ -350,7 +399,7 @@ async def test_failed_tracker_action(hass: HomeAssistant, aioclient_mock, caplog
     entry = await _setup(hass, aioclient_mock)
     data = {"entity_id": f"device_tracker.{NICK.lower()}"}
     if service == "make_call":
-        data["contact"] = "sos_1"
+        data["phone"] = "+15555550100"
     with patch.object(entry.runtime_data.client, method, side_effect=MykiError("offline")):
         with pytest.raises(HomeAssistantError):
             await hass.services.async_call(DOMAIN, service, data, blocking=True)
@@ -410,12 +459,13 @@ async def test_fresh_data_requires_a_recent_past_timestamp(hass: HomeAssistant, 
 
 async def test_shared_contacts_follow_app_refresh(hass: HomeAssistant, aioclient_mock):
     entry = await _setup(hass, aioclient_mock)
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["sos_1"] == "0015555550100"
+    entity_id = f"text.{NICK.lower()}_sos_1"
+    assert hass.states.get(entity_id).state == "0015555550100"
     changed = deepcopy(APP_DATA["data"])
     changed["commands"]["sos_phone_1"] = "0015555550103"
     with patch.object(entry.runtime_data.client, "app_data", return_value=changed):
         await entry.runtime_data.async_request_refresh()
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["sos_1"] == "0015555550103"
+    assert hass.states.get(entity_id).state == "0015555550103"
 
 
 async def test_edit_sos_contact_verifies_cloud_readback(hass: HomeAssistant, aioclient_mock):
@@ -426,9 +476,11 @@ async def test_edit_sos_contact_verifies_cloud_readback(hass: HomeAssistant, aio
         patch.object(entry.runtime_data.client, "app_data", side_effect=[APP_DATA["data"], confirmed]),
         patch.object(entry.runtime_data.client, "set_sos_number") as write,
     ):
-        await entry.runtime_data.async_set_contact(WATCH_ID, "sos_1", "+15555550103", "0015555550100")
+        await hass.services.async_call("text", "set_value", {
+            "entity_id": f"text.{NICK.lower()}_sos_1", "value": "+15555550103",
+        }, blocking=True)
         write.assert_awaited_once_with(WATCH_ID, 1, "0015555550103")
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["sos_1"] == "0015555550103"
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state == "0015555550103"
 
 
 async def test_whitelist_preserves_hidden_slots_and_latest_siblings(hass: HomeAssistant, aioclient_mock):
@@ -441,11 +493,13 @@ async def test_whitelist_preserves_hidden_slots_and_latest_siblings(hass: HomeAs
         patch.object(entry.runtime_data.client, "app_data", side_effect=[fresh, confirmed]),
         patch.object(entry.runtime_data.client, "set_whitelist") as write,
     ):
-        await entry.runtime_data.async_set_contact(WATCH_ID, "whitelist_7", "+15555550105", "")
+        await hass.services.async_call("text", "set_value", {
+            "entity_id": f"text.{NICK.lower()}_whitelist_7", "value": "+15555550105",
+        }, blocking=True)
         write.assert_awaited_once_with(WATCH_ID, 2, [
             "0015555550104", "0015555550105", "0015555550106", "", "0015555550108",
         ])
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["whitelist_7"] == "0015555550105"
+    assert hass.states.get(f"text.{NICK.lower()}_whitelist_7").state == "0015555550105"
 
 
 @pytest.mark.parametrize("failure", ["offline", "rejected", "changed", "unconfirmed", "missing_group", "malformed"])
@@ -472,7 +526,7 @@ async def test_contact_failures_never_claim_success(hass: HomeAssistant, aioclie
         if failure not in ("unconfirmed", "rejected"):
             sos.assert_not_awaited()
         whitelist.assert_not_awaited()
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["sos_1"] != "0015555550103"
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state != "0015555550103"
 
 
 async def test_equivalent_contact_edit_does_not_rewrite_storage(hass: HomeAssistant, aioclient_mock):
@@ -496,16 +550,11 @@ async def test_call_slot_resolves_current_cloud_value(hass: HomeAssistant, aiocl
         call.assert_awaited_once_with(WATCH_ID, "0015555550103")
 
 
-@pytest.mark.parametrize("target,error", [
-    ({"contact": "sos_3"}, HomeAssistantError),
-    ({"phone": "+15555550109"}, vol.Invalid),
-    ({}, vol.Invalid),
-    ({"contact": "sos_1", "phone": "+15555550100"}, vol.Invalid),
-])
-async def test_call_rejects_empty_or_legacy_destinations(hass: HomeAssistant, aioclient_mock, target, error):
+@pytest.mark.parametrize("target", [{"contact": "sos_3"}, {"phone": "+15555550109"}, {}])
+async def test_call_rejects_empty_or_unshared_contacts(hass: HomeAssistant, aioclient_mock, target):
     entry = await _setup(hass, aioclient_mock)
     with patch.object(entry.runtime_data.client, "make_call") as call:
-        with pytest.raises(error):
+        with pytest.raises(HomeAssistantError):
             await hass.services.async_call(DOMAIN, "make_call", {
                 "entity_id": f"device_tracker.{NICK.lower()}", **target,
             }, blocking=True)
@@ -554,14 +603,14 @@ async def test_retired_call_controls_removed_without_cloud_writes(hass: HomeAssi
         assert entry.options == {"scan_interval": 120}
         assert all(registry.async_get(entity.entity_id) is None for entity in retired)
         assert registry.async_get(other.entity_id) is other
-        assert registry.async_get(contact.entity_id) is None
+        assert registry.async_get(contact.entity_id).name == "My SOS contact"
         assert entry.runtime_data.data[WATCH_ID]["app"]["commands"] == APP_DATA["data"]["commands"]
         assert hass.states.get(f"select.{NICK.lower()}_call_contact") is None
         assert hass.states.get(f"button.{NICK.lower()}_call_me") is None
         assert await hass.config_entries.async_reload(entry.entry_id)
         await hass.async_block_till_done()
         assert entry.options == {"scan_interval": 120}
-        assert registry.async_get(contact.entity_id) is None
+        assert registry.async_get(contact.entity_id).name == "My SOS contact"
         sos.assert_not_awaited()
         whitelist.assert_not_awaited()
         call.assert_not_awaited()
@@ -606,7 +655,7 @@ async def test_readback_checks_untouched_whitelist_entries_too(hass: HomeAssista
     ):
         with pytest.raises(MykiError, match="not confirmed"):
             await entry.runtime_data.async_set_contact(WATCH_ID, "whitelist_1", "0015555550104", "0015555550100")
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["whitelist_2"] == "0015555550109"
+    assert hass.states.get(f"text.{NICK.lower()}_whitelist_2").state == "0015555550109"
 
 
 async def test_contact_write_can_clear_a_slot(hass: HomeAssistant, aioclient_mock):
@@ -619,39 +668,54 @@ async def test_contact_write_can_clear_a_slot(hass: HomeAssistant, aioclient_moc
     ):
         await entry.runtime_data.async_set_contact(WATCH_ID, "sos_1", "", "0015555550100")
         write.assert_awaited_once_with(WATCH_ID, 1, "")
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["sos_1"] == ""
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state == ""
 
 
 
 async def test_failed_contact_readback_is_not_reported_as_success(hass: HomeAssistant, aioclient_mock):
     entry = await _setup(hass, aioclient_mock)
     with (
-        patch.object(entry.runtime_data.client, "app_data", side_effect=[APP_DATA["data"], MykiError("request timed out")]),
+        patch.object(entry.runtime_data.client, "app_data", side_effect=[
+            APP_DATA["data"], MykiError("request timed out"), APP_DATA["data"],
+        ]),
         patch.object(entry.runtime_data.client, "set_sos_number") as write,
     ):
-        with pytest.raises(MykiError, match="timed out"):
-            await entry.runtime_data.async_set_contact(WATCH_ID, "sos_1", "0015555550103", "0015555550100")
+        with pytest.raises(HomeAssistantError, match="contact update failed"):
+            await hass.services.async_call("text", "set_value", {
+                "entity_id": f"text.{NICK.lower()}_sos_1", "value": "0015555550103",
+            }, blocking=True)
         write.assert_awaited_once_with(WATCH_ID, 1, "0015555550103")
-    assert contact_numbers(entry.runtime_data.data[WATCH_ID]["app"])["sos_1"] == "0015555550100"
+    assert hass.states.get(f"text.{NICK.lower()}_sos_1").state == "0015555550100"
+
 
 
 async def test_grouped_names_preserve_entity_ids_and_custom_names(hass, aioclient_mock):
+    """Display groups must not rename existing IDs or user-customized entities."""
     entry = await _setup(hass, aioclient_mock)
     grouped = {
+        "number.testkid_ring_volume": "Audio: Ring volume",
+        "number.testkid_call_volume": "Audio: Call volume",
+        "select.testkid_ring_mode": "Audio: Ring mode",
+        "select.testkid_ringtone": "Audio: Ringtone",
+        "text.testkid_sos_1": "Contacts: SOS 1",
+        "text.testkid_whitelist_1": "Contacts: Whitelist 1",
+        "switch.testkid_status_led": "Lights: Status LED",
         "sensor.testkid_cell_towers": "Reception: Cell towers",
         "sensor.testkid_gps_satellites": "Reception: GPS satellites",
         "sensor.testkid_wifi_networks": "Reception: WiFi networks",
     }
     for entity_id, label in grouped.items():
-        assert hass.states.get(entity_id).attributes["friendly_name"] == f"{NICK} {label}"
+        state = hass.states.get(entity_id)
+        assert state is not None
+        assert state.attributes["friendly_name"] == f"{NICK} {label}"
     registry = er.async_get(hass)
-    entity_id = "sensor.testkid_gps_satellites"
-    registry.async_update_entity(entity_id, name="My custom reception")
+    entity_id = "switch.testkid_status_led"
+    registry.async_update_entity(entity_id, name="My custom light")
     await hass.async_block_till_done()
     await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
-    assert registry.async_get(entity_id).name == "My custom reception"
-    assert hass.states.get(entity_id).attributes["friendly_name"] == f"{NICK} My custom reception"
+    assert registry.async_get(entity_id).name == "My custom light"
+    assert hass.states.get(entity_id).attributes["friendly_name"] == f"{NICK} My custom light"
 
 
 async def _setup_personalization(hass, aioclient_mock):
@@ -663,66 +727,107 @@ async def _setup_personalization(hass, aioclient_mock):
     return entry, cloud
 
 
-@pytest.mark.parametrize("key,value", [
-    ("profile", "1"), ("profile", 2), ("profile", "3"), ("profile", "4"),
-    ("ringtone", 0), ("ringtone", "1"), ("ringtone", "2"),
-    ("led", "0"), ("led", 1), ("led", "2"),
+@pytest.mark.parametrize("key,value,entity,state", [
+    ("profile", "1", "select.testkid_ring_mode", "sound_and_vibration"),
+    ("profile", 2, "select.testkid_ring_mode", "sound"),
+    ("profile", "3", "select.testkid_ring_mode", "vibration"),
+    ("profile", "4", "select.testkid_ring_mode", "mute"),
+    ("ringtone", 0, "select.testkid_ringtone", "classic"),
+    ("ringtone", "1", "select.testkid_ringtone", "playtime"),
+    ("ringtone", "2", "select.testkid_ringtone", "twinkle"),
+    ("led", "0", "switch.testkid_status_led", "off"),
+    ("led", 1, "switch.testkid_status_led", "on"),
+    ("led", "2", "switch.testkid_status_led", "unknown"),
 ])
-async def test_personalization_tracks_cloud(hass, aioclient_mock, key, value):
+async def test_personalization_tracks_cloud(hass, aioclient_mock, key, value, entity, state):
     entry, cloud = await _setup_personalization(hass, aioclient_mock)
     cloud["commands"][key] = value
     entry.runtime_data._publish_contacts(WATCH_ID, cloud)
-    assert scalar_setting(entry.runtime_data.data[WATCH_ID]["app"], key) == str(value)
+    await hass.async_block_till_done()
+    assert hass.states.get(entity).state == state
     assert entry.options == {}
+    assert hass.states.get(f"number.{NICK.lower()}_ring_volume").state == "4"
+    assert hass.states.get(f"number.{NICK.lower()}_call_volume").state == "6"
 
 
-@pytest.mark.parametrize("value", ["0", "1", "2"])
-async def test_missing_ringtone_uses_app_default_and_allows_edit(hass, aioclient_mock, value):
+@pytest.mark.parametrize("option,value", [("classic", "0"), ("playtime", "1"), ("twinkle", "2")])
+async def test_missing_ringtone_uses_app_default_and_allows_edit(hass, aioclient_mock, option, value):
     entry, cloud = await _setup_personalization(hass, aioclient_mock)
     del cloud["commands"]["ringtone"]
-    assert scalar_setting(cloud, "ringtone") == "0"
-    async def update(watch_id, key, requested):
-        cloud["commands"][key] = requested
-    with (
-        patch.object(entry.runtime_data.client, "set_personalization", side_effect=update) as write,
-        patch.object(entry.runtime_data.client, "app_data", side_effect=lambda _: deepcopy(cloud)),
-    ):
-        await entry.runtime_data.async_set_personalization(WATCH_ID, "ringtone", value, "0")
-        if value == "0":
+    with patch.object(entry.runtime_data.client, "set_personalization") as write:
+        entry.runtime_data._publish_contacts(WATCH_ID, deepcopy(cloud))
+        await hass.async_block_till_done()
+        assert hass.states.get("select.testkid_ringtone").state == "classic"
+        write.assert_not_awaited()
+
+        async def update(watch_id, key, requested):
+            cloud["commands"][key] = requested
+
+        write.side_effect = update
+        with patch.object(entry.runtime_data.client, "app_data", side_effect=lambda _: deepcopy(cloud)):
+            await hass.services.async_call("select", "select_option", {
+                "entity_id": "select.testkid_ringtone", "option": option,
+            }, blocking=True)
+        if option == "classic":
             write.assert_not_awaited()
             assert "ringtone" not in cloud["commands"]
         else:
             write.assert_awaited_once_with(WATCH_ID, "ringtone", value)
-    assert scalar_setting(entry.runtime_data.data[WATCH_ID]["app"], "ringtone") == value
-    assert entry.options == {}
+        assert hass.states.get("select.testkid_ringtone").state == option
+        assert entry.options == {}
 
 
-@pytest.mark.parametrize("key,value", [
-    ("profile", "2"), ("profile", "3"), ("profile", "4"), ("ringtone", "1"), ("ringtone", "2"), ("led", "0"), ("led", "1"),
+@pytest.mark.parametrize("key,entity", [
+    ("profile", "select.testkid_ring_mode"),
+    ("ringtone", "select.testkid_ringtone"),
+    ("led", "switch.testkid_status_led"),
 ])
-async def test_personalization_write_requires_cloud_readback(hass, aioclient_mock, key, value):
+@pytest.mark.parametrize("value", [None, "", "99", [], {}, True, 1.5])
+async def test_invalid_personalization_is_unknown(hass, aioclient_mock, key, entity, value):
+    entry, cloud = await _setup_personalization(hass, aioclient_mock)
+    cloud["commands"][key] = value
+    entry.runtime_data._publish_contacts(WATCH_ID, cloud)
+    await hass.async_block_till_done()
+    assert hass.states.get(entity).state == "unknown"
+
+
+@pytest.mark.parametrize("key,value,domain,action,entity,extra,state", [
+    ("profile", "2", "select", "select_option", "select.testkid_ring_mode", {"option": "sound"}, "sound"),
+    ("profile", "3", "select", "select_option", "select.testkid_ring_mode", {"option": "vibration"}, "vibration"),
+    ("profile", "4", "select", "select_option", "select.testkid_ring_mode", {"option": "mute"}, "mute"),
+    ("ringtone", "1", "select", "select_option", "select.testkid_ringtone", {"option": "playtime"}, "playtime"),
+    ("ringtone", "2", "select", "select_option", "select.testkid_ringtone", {"option": "twinkle"}, "twinkle"),
+    ("led", "0", "switch", "turn_off", "switch.testkid_status_led", {}, "off"),
+    ("led", "1", "switch", "turn_on", "switch.testkid_status_led", {}, "on"),
+])
+async def test_personalization_write_requires_cloud_readback(hass, aioclient_mock, key, value, domain, action, entity, extra, state):
     entry, cloud = await _setup_personalization(hass, aioclient_mock)
     if key == "led":
-        cloud["commands"]["led"] = "2"
+        cloud["commands"]["led"] = "2"  # Explicit switch action exits temporary party mode.
         entry.runtime_data._publish_contacts(WATCH_ID, deepcopy(cloud))
-    previous = scalar_setting(cloud, key)
+        await hass.async_block_till_done()
+    previous = hass.states.get(entity).state
     untouched = deepcopy(cloud)
+
     async def read(wid):
         assert wid == WATCH_ID
         return deepcopy(cloud)
+
     async def write(wid, setting, requested):
         assert (wid, setting, requested) == (WATCH_ID, key, value)
-        assert scalar_setting(entry.runtime_data.data[WATCH_ID]["app"], key) == previous
+        assert hass.states.get(entity).state == previous
         cloud["commands"][setting] = requested
+
     with (
         patch.object(entry.runtime_data.client, "app_data", side_effect=read),
         patch.object(entry.runtime_data.client, "set_personalization", side_effect=write) as request,
     ):
-        await entry.runtime_data.async_set_personalization(WATCH_ID, key, value, previous)
+        await hass.services.async_call(domain, action, {"entity_id": entity, **extra}, blocking=True)
         request.assert_awaited_once_with(WATCH_ID, key, value)
+    await hass.async_block_till_done()
     untouched["commands"][key] = value
     assert cloud == untouched
-    assert scalar_setting(entry.runtime_data.data[WATCH_ID]["app"], key) == value
+    assert hass.states.get(entity).state == state
     assert entry.options == {}
 
 
@@ -763,6 +868,24 @@ async def test_unchanged_personalization_does_not_write(hass, aioclient_mock, ke
         write.assert_not_awaited()
 
 
+@pytest.mark.parametrize("domain,action,entity,extra", [
+    ("select", "select_option", "select.testkid_ring_mode", {"option": "sound"}),
+    ("select", "select_option", "select.testkid_ringtone", {"option": "playtime"}),
+    ("switch", "turn_off", "switch.testkid_status_led", {}),
+])
+async def test_failed_personalization_action_refreshes_and_reports_error(hass, aioclient_mock, domain, action, entity, extra):
+    entry, cloud = await _setup_personalization(hass, aioclient_mock)
+    previous = hass.states.get(entity).state
+    with (
+        patch.object(entry.runtime_data.client, "app_data", return_value=deepcopy(cloud)),
+        patch.object(entry.runtime_data.client, "set_personalization", side_effect=MykiError("rejected")) as write,
+    ):
+        with pytest.raises(HomeAssistantError, match="update failed"):
+            await hass.services.async_call(domain, action, {"entity_id": entity, **extra}, blocking=True)
+        write.assert_awaited_once()
+    assert hass.states.get(entity).state == previous
+
+
 async def test_personalization_writes_are_serialized(hass, aioclient_mock):
     entry, cloud = await _setup_personalization(hass, aioclient_mock)
     active = maximum = 0
@@ -789,3 +912,47 @@ async def test_personalization_writes_are_serialized(hass, aioclient_mock):
     assert maximum == 1
     assert cloud["commands"]["profile"] == "2"
     assert cloud["commands"]["ringtone"] == "1"
+
+
+
+async def test_personalization_targets_selected_tracker_and_survives_reload(hass, aioclient_mock):
+    other_id = "other-tracker"
+    other_app = deepcopy(APP_DATA)
+    other_app["data"]["commands"].update({"profile": "1", "ringtone": "0", "led": "1"})
+    aioclient_mock.get(f"{BASE_URL}/watch/app-data?id={other_id}", json=other_app)
+    aioclient_mock.get(f"{BASE_URL}/watch/history/events?id={other_id}", json={"isok": True})
+    with patch.dict(WATCHES["data"], allw=[
+        WATCHES["data"]["allw"][0], {"id": other_id, "nickname": "OtherKid", "api": 2},
+    ]):
+        entry = await _setup(hass, aioclient_mock)
+        registry = er.async_get(hass)
+        entity = registry.async_get("select.otherkid_ring_mode")
+        registry.async_update_entity(entity.entity_id, new_entity_id="select.custom_ring_mode", name="My ring mode")
+        await hass.async_block_till_done()
+        cloud = deepcopy(other_app["data"])
+
+        async def write(wid, key, value):
+            assert wid == other_id
+            cloud["commands"][key] = value
+
+        with (
+            patch.object(entry.runtime_data.client, "app_data", side_effect=lambda wid: deepcopy(cloud)) as read,
+            patch.object(entry.runtime_data.client, "set_personalization", side_effect=write) as request,
+        ):
+            await hass.services.async_call("select", "select_option", {
+                "entity_id": "select.custom_ring_mode", "option": "sound",
+            }, blocking=True)
+            request.assert_awaited_once_with(other_id, "profile", "2")
+            assert all(call.args == (other_id,) for call in read.await_args_list)
+        assert entry.runtime_data.data[WATCH_ID]["app"] == APP_DATA["data"]
+        assert entry.options == {}
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        assert hass.states.get("select.custom_ring_mode").state == "sound_and_vibration"
+        assert registry.async_get("select.custom_ring_mode").name == "My ring mode"
+        assert entry.options == {}
+        entry.runtime_data.async_set_updated_data({WATCH_ID: entry.runtime_data.data[WATCH_ID]})
+        await hass.async_block_till_done()
+        assert hass.states.get("select.custom_ring_mode").state == "unavailable"
+        assert hass.states.get("select.otherkid_ringtone").state == "unavailable"
+        assert hass.states.get("switch.otherkid_status_led").state == "unavailable"

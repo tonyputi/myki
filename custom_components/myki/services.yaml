@@ -10,13 +10,13 @@ make_call:
   name: Make tracker call
   description: >-
     Call a shared SOS or whitelist slot using its current MyKi cloud number.
+    Supply either contact or the legacy phone field, not both.
   target:
     entity:
       integration: myki
       domain: device_tracker
   fields:
     contact:
-      required: true
       name: Shared contact
       description: The existing MyKi contact slot to call.
       example: sos_1
@@ -33,6 +33,14 @@ make_call:
             - whitelist_5
             - whitelist_6
             - whitelist_7
+    phone:
+      name: Phone number
+      description: >-
+        Deprecated. Only numbers already in an app-visible shared contact are accepted;
+        use contact instead. International + and 00 prefixes are compared equivalently.
+      example: "+15555550100"
+      selector:
+        text:
 
 set_safe_zone:
   name: Set safe zone
