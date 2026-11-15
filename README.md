@@ -241,7 +241,7 @@ The integration identifies known models from the device firmware. Diagnostics co
 
 ## Dependabot automation
 
-After PR CI succeeds, Dependabot updates can enable native squash auto-merge. Human CODEOWNER review and the `hassfest`, `lint` and `tests` required checks remain mandatory. The repository-scoped GitHub App needs Contents and Pull requests write, `GH_APP_ID` and `GH_APP_PRIVATE_KEY`, and no ruleset bypass. See the [shared workflow prerequisites](https://github.com/tonyputi/.github#dependabot-auto-merge).
+Dependabot monitors GitHub Actions and the pip test requirements. Home Assistant manifest requirements and the separate Ruff pin in CI are not covered by the pip entry. After PR CI succeeds, Dependabot updates can enable native squash auto-merge. Human CODEOWNER review and the `hassfest`, `lint` and `tests` required checks remain mandatory. The repository-scoped GitHub App needs Contents and Pull requests write, `GH_APP_ID` and `GH_APP_PRIVATE_KEY`, and no ruleset bypass. See the [shared workflow prerequisites](https://github.com/tonyputi/.github#dependabot-auto-merge).
 
 ## Trademark
 
