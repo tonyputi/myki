@@ -239,6 +239,10 @@ Other MyKi products and backends have not been verified and are not supported.
 
 The integration identifies known models from the device firmware. Diagnostics contain only anonymous model, battery, signal, step and online status, plus account polling status; raw vendor payloads, identifiers, contacts and locations are not exported. For model-identification issues, report the model and firmware version shown on the device page, without sharing personal data.
 
+## Dependabot automation
+
+Dependabot monitors GitHub Actions and the pip test requirements. Home Assistant manifest requirements and the separate Ruff pin in CI are not covered by the pip entry. After PR CI succeeds, Dependabot updates can enable native squash auto-merge. Human CODEOWNER review and the `hassfest`, `lint` and `tests` required checks remain mandatory. The repository-scoped GitHub App needs Contents and Pull requests write, `GH_APP_ID` and `GH_APP_PRIVATE_KEY`, and no ruleset bypass. See the [shared workflow prerequisites](https://github.com/tonyputi/.github#dependabot-auto-merge).
+
 ## Trademark
 
 MyKi and the MyKi logo are trademarks of Allterco Consulting Ltd.
