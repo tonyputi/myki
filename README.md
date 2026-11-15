@@ -206,7 +206,7 @@ Requires **Home Assistant 2026.11.0 or newer**. Earlier releases are not support
 
 **HACS:** HACS → ⋮ Custom repositories → `https://github.com/tonyputi/myki` (category *Integration*), install **MyKi**, restart.
 
-**Manual:** copy `custom_components/myki/` into your Home Assistant `config/custom_components/myki/`, restart.
+**Manual:** download `myki.zip` from the GitHub release, extract its contents into `config/custom_components/myki/`, and restart. The source archive does not contain the release-versioned manifest.
 
 Then enter the email and password of your MyKi Spot account.
 
