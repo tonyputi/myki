@@ -24,7 +24,26 @@ _ENTITY_OBJECT_NAMES = {
     "rtt_seconds_left": "Live tracking seconds left",
     "fresh_data": "Fresh data",
     "online": "Online",
+    "ring_volume": "Ring volume",
+    "call_volume": "Call volume",
+    "mode": "Operating mode",
+    "ring_mode": "Ring mode",
+    "ringtone": "Ringtone",
+    "battery_save_mode": "Battery save",
     "flashlight": "Flashlight",
+    "status_led": "Status LED",
+    "tracker_nickname": "Tracker nickname",
+    "sim_phone": "SIM phone number",
+    "sos_1": "SOS 1",
+    "sos_2": "SOS 2",
+    "sos_3": "SOS 3",
+    "whitelist_1": "Whitelist 1",
+    "whitelist_2": "Whitelist 2",
+    "whitelist_3": "Whitelist 3",
+    "whitelist_4": "Whitelist 4",
+    "whitelist_5": "Whitelist 5",
+    "whitelist_6": "Whitelist 6",
+    "whitelist_7": "Whitelist 7"
 }
 
 

@@ -30,207 +30,10 @@
   "options": {
     "step": {
       "init": {
-        "title": "MyKi settings",
-        "menu_options": {
-          "tracker": "Tracker settings",
-          "polling": "Integration polling"
-        }
-      },
-      "polling": {
-        "title": "Integration polling",
+        "title": "MyKi options",
         "data": {
           "scan_interval": "Seconds between updates (minimum 10)"
         }
-      },
-      "tracker": {
-        "title": "Choose tracker",
-        "data": {
-          "tracker": "Tracker"
-        }
-      },
-      "tracker_menu": {
-        "title": "Tracker settings",
-        "description": "Selected tracker: {tracker}",
-        "menu_options": {
-          "contacts": "Contacts",
-          "audio": "Audio and status light",
-          "device": "Device and battery",
-          "zones": "Safe zones",
-          "schedules": "Alarms and Do not disturb"
-        }
-      },
-      "contacts": {
-        "title": "Choose contact slot",
-        "data": {
-          "contact": "Contact"
-        }
-      },
-      "contact": {
-        "title": "Edit {setting}",
-        "data": {
-          "value": "Phone number"
-        },
-        "description": "Tracker: {tracker}. Clear the field to remove this contact. Save writes only this slot and verifies cloud readback. SOS contact edits affect the physical SOS button."
-      },
-      "audio": {
-        "title": "Audio and status light",
-        "data": {
-          "setting": "Setting"
-        }
-      },
-      "device": {
-        "title": "Device and battery",
-        "data": {
-          "setting": "Setting"
-        },
-        "description": "Operating mode can affect device behavior. The SIM number is account metadata, not SIM programming."
-      },
-      "setting": {
-        "title": "Edit {setting}",
-        "data": {
-          "value": "Value"
-        },
-        "description": "Tracker: {tracker}. Save writes only the selected setting and verifies cloud readback. No preference is stored in HA. Default status LED behavior is not a promise of continuous illumination."
-      },
-      "zones": {
-        "title": "Choose safe zone",
-        "data": {
-          "zone": "Zone"
-        }
-      },
-      "zone": {
-        "title": "Edit {setting}",
-        "data": {
-          "name": "Name",
-          "location": "Center and radius",
-          "enabled": "Enabled",
-          "ring_mode": "Sound and vibration profile"
-        },
-        "description": "Tracker: {tracker}. Select the center on the map and adjust the radius in meters. Nothing is sent until you save. This edits the same zone as the MyKi app, not an HA zone. Color remains phone-local."
-      },
-      "schedules": {
-        "title": "Choose schedule",
-        "data": {
-          "schedule": "Schedule"
-        }
-      },
-      "alarm": {
-        "title": "Edit {setting}",
-        "data": {
-          "enabled": "Enabled",
-          "time": "Time",
-          "weekdays": "Weekdays"
-        },
-        "description": "Tracker: {tracker}. Use the tracker's local time with zero seconds. An enabled alarm needs at least one weekday. Other alarms are preserved. Physical timezone/DST behavior is not verified."
-      },
-      "dnd": {
-        "title": "Edit {setting}",
-        "data": {
-          "enabled": "Enabled",
-          "start": "Start time",
-          "end": "End time"
-        },
-        "description": "Tracker: {tracker}. Use tracker local time with zero seconds. Enabled start/end must differ. Only the first period is edited; other cloud periods are preserved. Disabling clears the first period."
-      }
-    },
-    "error": {
-      "invalid_input": "Invalid value. Check the fields; times must have zero seconds and enabled schedules need valid times/days."
-    },
-    "abort": {
-      "settings_saved": "The setting was verified in the MyKi cloud. No tracker preference was saved in HA.",
-      "integration_not_loaded": "Load or reauthenticate the integration before editing tracker settings.",
-      "tracker_removed": "The tracker is no longer available on this account. Reopen configuration to refresh the list.",
-      "invalid_settings": "Cloud settings are missing or malformed. Inspect the MyKi app and refresh; no values were invented or written.",
-      "invalid_auth": "Authentication failed. Reauthenticate the integration before continuing.",
-      "cannot_connect": "Unable to read MyKi settings. No setting was written.",
-      "write_failed": "The edit was rejected or its result could not be verified. The tracker may have changed. Reopen configuration and inspect the current values before retrying; no automatic retry or rollback was performed."
-    }
-  },
-  "selector": {
-    "contacts": {
-      "options": {
-        "sos_1": "SOS 1",
-        "sos_2": "SOS 2",
-        "sos_3": "SOS 3",
-        "whitelist_1": "Whitelist 1",
-        "whitelist_2": "Whitelist 2",
-        "whitelist_3": "Whitelist 3",
-        "whitelist_4": "Whitelist 4",
-        "whitelist_5": "Whitelist 5",
-        "whitelist_6": "Whitelist 6",
-        "whitelist_7": "Whitelist 7"
-      }
-    },
-    "settings": {
-      "options": {
-        "profile": "Ring mode",
-        "ringtone": "Ringtone",
-        "volume_ring": "Ring volume",
-        "volume_call": "Call volume",
-        "led": "Status LED",
-        "mode": "Operating mode",
-        "battery_save_mode": "Battery saving",
-        "nickname": "Tracker nickname",
-        "msisdn": "SIM phone number"
-      }
-    },
-    "profile": {
-      "options": {
-        "1": "Sound and vibration",
-        "2": "Sound only",
-        "3": "Vibration only",
-        "4": "Mute"
-      }
-    },
-    "ringtone": {
-      "options": {
-        "0": "Classic",
-        "1": "Playtime",
-        "2": "Twinkle"
-      }
-    },
-    "led": {
-      "options": {
-        "0": "Disabled",
-        "1": "Default status indication"
-      }
-    },
-    "mode": {
-      "options": {
-        "sos": "SOS button",
-        "pet": "Pet tracker",
-        "asset": "Asset tracker"
-      }
-    },
-    "battery_save_mode": {
-      "options": {
-        "0": "Disabled",
-        "1": "Enabled"
-      }
-    },
-    "zones": {
-      "options": {
-        "safe_zone_1": "Safe zone 1",
-        "safe_zone_2": "Safe zone 2"
-      }
-    },
-    "schedules": {
-      "options": {
-        "dnd": "Do not disturb",
-        "alarm_1": "Alarm 1",
-        "alarm_2": "Alarm 2",
-        "alarm_3": "Alarm 3"
-      }
-    },
-    "weekdays": {
-      "options": {
-        "sun": "Sunday",
-        "mon": "Monday",
-        "tue": "Tuesday",
-        "wed": "Wednesday",
-        "thu": "Thursday",
-        "fri": "Friday",
-        "sat": "Saturday"
       }
     }
   },
@@ -299,14 +102,93 @@
         "name": "Live tracking"
       }
     },
+    "number": {
+      "ring_volume": {
+        "name": "Audio: Ring volume"
+      },
+      "call_volume": {
+        "name": "Audio: Call volume"
+      }
+    },
     "event": {
       "events": {
         "name": "Events"
       }
     },
+    "select": {
+      "mode": {
+        "name": "Device: Operating mode",
+        "state": {
+          "sos": "SOS button",
+          "pet": "Pet tracker",
+          "asset": "Asset tracker"
+        }
+      },
+      "ring_mode": {
+        "name": "Audio: Ring mode",
+        "state": {
+          "sound_and_vibration": "Sound and vibration",
+          "sound": "Sound only",
+          "vibration": "Vibration only",
+          "mute": "Mute"
+        }
+      },
+      "ringtone": {
+        "name": "Audio: Ringtone",
+        "state": {
+          "classic": "Classic",
+          "playtime": "Playtime",
+          "twinkle": "Twinkle"
+        }
+      }
+    },
     "switch": {
+      "battery_save_mode": {
+        "name": "Device: Battery save"
+      },
       "flashlight": {
         "name": "Lights: Flashlight"
+      },
+      "status_led": {
+        "name": "Lights: Status LED"
+      }
+    },
+    "text": {
+      "tracker_nickname": {
+        "name": "Device: Tracker nickname"
+      },
+      "sim_phone": {
+        "name": "Device: SIM phone number"
+      },
+      "sos_1": {
+        "name": "Contacts: SOS 1"
+      },
+      "sos_2": {
+        "name": "Contacts: SOS 2"
+      },
+      "sos_3": {
+        "name": "Contacts: SOS 3"
+      },
+      "whitelist_1": {
+        "name": "Contacts: Whitelist 1"
+      },
+      "whitelist_2": {
+        "name": "Contacts: Whitelist 2"
+      },
+      "whitelist_3": {
+        "name": "Contacts: Whitelist 3"
+      },
+      "whitelist_4": {
+        "name": "Contacts: Whitelist 4"
+      },
+      "whitelist_5": {
+        "name": "Contacts: Whitelist 5"
+      },
+      "whitelist_6": {
+        "name": "Contacts: Whitelist 6"
+      },
+      "whitelist_7": {
+        "name": "Contacts: Whitelist 7"
       }
     }
   },

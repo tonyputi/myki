@@ -26,10 +26,19 @@ Per tracker (each kid gets a **device** named after the tracker nickname):
 | `binary_sensor.<kid>_fresh_data` | Device has reported within 30 min |
 | `sensor.<kid>_gsm_signal` | GSM signal % (diagnostic) |
 | `button.<kid>_find` | Ring the tracker |
+| `number.<kid>_ring_volume` / `number.<kid>_call_volume` | Volume sliders (config) |
+| `select.<kid>_ring_mode` | Shared sound/vibration mode (config) |
+| `select.<kid>_ringtone` | Shared Classic / Playtime / Twinkle ringtone (config) |
+| `switch.<kid>_status_led` | Shared default status LED indication (config) |
 | `switch.<kid>_flashlight` | App flashlight / temporary LED command |
+| `switch.<kid>_battery_save` | Shared battery-saving mode (config) |
+| `select.<kid>_operating_mode` | SOS button / Pet tracker / Asset tracker mode (config) |
 | `sensor.<kid>_safe_zone_1` / `_safe_zone_2` | Shared zone name; coordinates, radius in meters, enabled state and ring mode as attributes |
 | `sensor.<kid>_do_not_disturb` | First DND period; all four cloud periods as attributes |
 | `sensor.<kid>_alarm_1` … `_alarm_3` | Shared alarm time; enabled state and selected weekdays as attributes |
+| `text.<kid>_tracker_nickname` / `text.<kid>_sim_phone_number` | Shared cloud tracker nickname / SIM number (config) |
+| `text.<kid>_sos_1` … `sos_3` | Shared MyKi SOS numbers (config) |
+| `text.<kid>_whitelist_1` … `whitelist_7` | Shared app-visible whitelist numbers (config) |
 
 The zone sensor is calculated from the reported position and active MyKi safe zones. Invalid coordinates or malformed zone configuration produce `unknown`, not `away`; disabled zones are ignored. Automations should ignore `unknown`/`unavailable` transitions and allow for tracker reporting and cloud polling delays.
 
@@ -51,51 +60,35 @@ data:
   contact: sos_1
 ```
 
-## Configure a tracker
-
-Use **Settings → Devices & services → MyKi → Configure → Tracker settings**. Choose the tracker once, then a section:
-
-- **Contacts:** three SOS and seven app-visible whitelist slots; choose one slot to edit or clear.
-- **Audio and status light:** ring mode, ringtone, ring/call volume and default/disabled status LED.
-- **Device and battery:** operating mode, battery saving, tracker nickname and SIM number.
-- **Safe zones:** choose zone 1 or 2; the native HA map shows its current center and radius in meters. Edit name, center, circle radius, activation and audio/vibration profile.
-- **Alarms and Do not disturb:** choose one of three alarms (enabled, minute-precision time, weekdays), or DND (enabled, start/end).
-
-These are native menu sections, not tabs or a custom frontend. Values are freshly read when opening an editor; nothing is sent until **Submit**. Each editor identifies the selected tracker and setting. A successful save verifies the cloud value and closes the form. Reopen Configure to edit another setting. An uncertain save also closes the draft with a warning: inspect current values before retrying. Missing/malformed data is not replaced with invented defaults. Tracker preferences, contact numbers, locations and schedules are never saved in the entry's HA options; only integration preferences such as polling are stored there.
-
-The device page is for state, diagnostic information and quick commands (Find, live tracking, flashlight), not a second default settings editor. Zone/DND/alarm sensors remain read-only summaries. Existing structured actions remain available to automations and Developer Tools; no separate frontend is required.
-
-### Upgrade: settings controls moved
-
-The old `number` volume sliders, `select` ring/ringtone/mode controls, status-LED/battery switches and `text` contacts/nickname/SIM entities are **removed**, not hidden or disabled compatibility controls. Their obsolete platform implementations and translations are deleted. Setup removes their registry entries even when renamed, disabled or associated with a tracker no longer on the account, without writing cloud settings. They cannot be re-enabled. Dashboard cards and automations referencing these removed entities must be updated; interactive edits use Configure. Existing Find/live-tracking/flashlight controls, location, diagnostics, events and structured zone/schedule/call actions are unchanged.
+**Upgrading from v0.12.0:** device-page settings controls are recreated automatically and Configure edits only the polling interval. Setup does not change cloud settings or undo edits made in MyKi. Custom names/entity IDs deleted from the registry by v0.12.0 cannot be recovered automatically; check dashboards and automations after updating. Restored contact text values are again exposed in HA states and may be recorded in history.
 
 ## Shared contacts
 
-Edit contacts through **Configure → Tracker settings → Contacts**; they read and write the same MyKi cloud slots as the app, not a separate HA address book. App changes appear on the next successful refresh. Enter digits, optionally prefixed with `+`; new international numbers use the app's `00` format. An empty value clears a slot. Equivalent `+`/`00` values do not cause unnecessary rewrites.
+Edit the SOS/whitelist text entities on each device; they read and write the same MyKi cloud slots as the app, not a separate HA address book. App changes appear on the next successful refresh. Enter digits, optionally prefixed with `+`; new international numbers use the app's `00` format. An empty value clears a slot. Equivalent `+`/`00` values do not cause unnecessary rewrites.
 
 The app exposes three SOS and seven whitelist numbers. Whitelist writes require a complete group of five: the integration reads fresh cloud data and preserves the other entries, including the three cloud slots the app does not show. Missing/malformed groups and offline trackers are not overwritten. Edits to a slot changed since the last HA refresh are rejected. Only cloud readback is displayed; rejection, timeout or different readback raises an error rather than showing optimistic success. After an uncertain result, refresh and inspect the app before retrying; there is no automatic retry or rollback.
 
 **Avoid editing the same whitelist group simultaneously in HA and the app.** HA serializes its own edits and checks readback, but the vendor API offers no conditional-write/version token: an app edit between HA's read and write cannot be prevented atomically. Cloud confirmation is not proof that hardware has applied the setting. Physical-device/app write verification remains tracked in #27.
 
-MyKi cloud is the source of truth for tracker settings and contacts; HA does not keep a separate calling destination. To initiate a call from HA, use `myki.make_call` with the contact specified for that execution, as above. Its current number is resolved from the cloud. The deprecated `phone` action argument is removed; automations must specify `contact` (for example, `sos_1`). There is one calling destination format, resolved from the current shared cloud slot on every execution.
+MyKi cloud is the source of truth for tracker settings and contacts; HA does not keep a separate calling destination. To initiate a call from HA, use `myki.make_call` with the contact specified for that execution, as above. Its current number is resolved from the cloud. Existing automations using `phone` still work only if that number matches an app-visible shared contact (`+`/`00` compare equivalently).
 
 **Upgrade:** the HA-only **Call contact** selector and **Call me** button are removed, together with their saved `call_contacts` and legacy `call_me_number` options. Their entity-registry entries are cleaned up automatically on setup. Automations or dashboards referencing these removed entities must be updated; use the existing `myki.make_call` action for explicit calls. No SOS/whitelist cloud contacts are inserted, changed or deleted by this cleanup, and the physical SOS button is unaffected.
 
-**Privacy:** settings forms contain personal data; restrict HA access, debug logging and backups. Removing contact text entities does not erase any previously recorded values from Recorder or backups. MyKi diagnostics do not include the contacts; MyKi-generated errors do not include numbers.
+**Privacy:** contact text values are personal data in HA states and may be recorded in history or included in HA debug logs/backups. Restrict HA access and exclude these entities from Recorder if needed. MyKi diagnostics do not include the contacts; MyKi-generated errors do not include numbers.
 
 ### Device-page ordering
 
-Home Assistant sorts the standard device panels by display name. Read-only configuration summaries use Schedules/Zone group prefixes; diagnostics use Cloud, Reception and Tracking, and the flashlight uses Lights. Cell towers, GPS satellites, GSM signal and WiFi networks share the Reception prefix. These are name groups, not custom subpanels. Remaining state/diagnostic entity IDs and user-customized names are preserved, including on reload; custom names may sort outside the default groups. Example IDs below retain their original bases.
+Home Assistant sorts the standard device panels by display name. Names use translated group prefixes (Audio, Contacts, Device, Lights, Schedules, Zones; Cloud, Reception and Tracking for diagnostics). Cell towers, GPS satellites, GSM signal and WiFi networks share the Reception prefix. These are name groups, not custom subpanels. Established entity IDs and user-customized names are preserved, including on reload; custom names may sort outside the default groups. Example IDs below retain their original bases.
 
-Zone, DND and alarm sensors show configuration; edit them through Configure as described above, not by clicking the read-only sensor state. Structured `myki.set_safe_zone`, `myki.set_dnd` and `myki.set_alarm` actions remain available for automation.
+Zone, DND and alarm sensors show configuration; edit them using the `myki.set_safe_zone`, `myki.set_dnd` and `myki.set_alarm` actions described below, not by clicking the read-only sensor state. There is no inline schedule/map editor in the standard device panel.
 
 ## Shared personalization
 
-Ring mode, ringtone and status LED read the same global command-state fields as the MyKi app. Ring mode offers sound and vibration, sound only, vibration only and mute; ringtone offers Classic, Playtime and Twinkle. When the cloud omits the ringtone field, HA displays Classic, matching the app's initial value; a present but invalid value remains unknown. This fallback does not write a setting to the tracker. No selection is saved in HA options. Reopening an editor reads current app/cloud values. Polling also updates the read-only state summaries.
+Ring mode, ringtone and status LED read the same global command-state fields as the MyKi app. Ring mode offers sound and vibration, sound only, vibration only and mute; ringtone offers Classic, Playtime and Twinkle. When the cloud omits the ringtone field, HA displays Classic, matching the app's initial value; a present but invalid value remains unknown. This fallback does not write a setting to the tracker. No selection is saved in HA options. App changes appear on the next successful refresh, and existing volume entities are unchanged.
 
 Each change reads the current cloud state, rejects a stale edit or offline tracker, writes only the selected setting and requires matching cloud readback. Except for the app's absent-ringtone Classic default described above, missing/unsupported values display `unknown` and are not silently replaced. No optimistic state, automatic retry or rollback is used; after an uncertain result, refresh and inspect the app before retrying. Local commands and polling are serialized, but the vendor API has no conditional writes to prevent simultaneous app edits atomically.
 
-The status LED editor offers **1** for default status indication or **0** for disabled, never the temporary LED-party value **2**. During temporary mode no default choice is preselected because the stored default preference cannot be inferred; explicitly saving a choice replaces that mode. Default indication does not promise a continuously lit LED.
+The status LED switch sends **1** for default status indication or **0** for disabled, never the temporary LED-party value **2**. During temporary mode, the switch displays `unknown` because the stored default preference cannot be inferred; an explicit on/off action replaces that mode. The switch does not promise a continuously lit LED.
 
 These are global settings, not per-zone melodies. Safe-zone profiles are left untouched; hardware precedence with zones/DND and app/cloud/tracker round-trip behavior remain unverified under #41. Cloud readback is not proof that the physical tracker has applied a change. No automatic sound preview is played.
 
@@ -105,7 +98,7 @@ The app's quick settings are shortcuts, not duplicate settings. Battery save and
 
 The separate flashlight switch follows the app's temporary LED command: on sends **2**, off restores default **1** only when the flashlight was active. It does not remember a previous LED preference; switching an already-off flashlight off leaves a disabled status LED alone. Temporary-mode expiry and hardware effects need final verification.
 
-Use **Configure → Tracker settings** for interactive zone/map and schedule editors. For automation, use the structured actions in **Developer Tools → Actions**. Each action targets a MyKi `device_tracker`, reads fresh state, rejects stale/offline edits, preserves unedited siblings and unknown zone fields, and verifies cloud readback. Omit fields to keep their current cloud values. No local schedule, cached enable-time preference, automatic retry or rollback is created. Empty/malformed schedules are not replaced with invented defaults.
+Use **Developer Tools → Actions** for structured zone and schedule edits. Each action targets a MyKi `device_tracker`, reads fresh state, rejects stale/offline edits, preserves unedited siblings and unknown zone fields, and verifies cloud readback. Omit fields to keep their current cloud values. No local schedule, cached enable-time preference, automatic retry or rollback is created. Empty/malformed schedules are not replaced with invented defaults.
 
 ```yaml
 # Change only the first official zone radius and ring mode.
@@ -145,7 +138,7 @@ data:
 
 Alarms accept `alarm_1`–`alarm_3`. Weekdays use `sun`, `mon`, `tue`, `wed`, `thu`, `fri`, `sat`; enabling requires at least one selected day. The app's opaque alarm field and freshly read sibling slots are preserved. All times are minute-precision tracker wall-clock times (`HH:MM`), not HA-local or UTC timestamps. These configure tracker alarms, not HA alarm automations.
 
-The tracker nickname and SIM-number settings edit the vendor account's device metadata through the app's paired write, preserving the freshly read other field. This does not reprogram a SIM, change an SOS contact or dial a call. Phone numbers require digits with an optional leading `+`; missing/invalid paired data is not silently replaced. Existing HA device/entity names and user customizations are not forcibly renamed; HA's default device name is refreshed on integration reload. Editing an HA display name alone still does not change the cloud nickname.
+The tracker nickname and SIM-number text entities edit the vendor account's device metadata through the app's paired write, preserving the freshly read other field. This does not reprogram a SIM, change an SOS contact or dial a call. Phone numbers require digits with an optional leading `+`; missing/invalid paired data is not silently replaced. Existing HA device/entity names and user customizations are not forcibly renamed; HA's default device name is refreshed on integration reload. Editing an HA display name alone still does not change the cloud nickname.
 
 ### Explicit power actions
 
@@ -210,7 +203,7 @@ Requires **Home Assistant 2026.11.0 or newer**. Earlier releases are not support
 
 Then enter the email and password of your MyKi Spot account.
 
-Configure on the integration card opens **Tracker settings** (the shared cloud editors described above) or **Integration polling** (seconds between updates, default 60, minimum 10; the vendor app polls every 10 s).
+Options (Configure on the integration card): polling interval in seconds (default 60, minimum 10 — the vendor app polls every 10 s).
 
 ## How it works
 

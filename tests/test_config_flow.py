@@ -103,8 +103,6 @@ async def test_options_save(hass: HomeAssistant, cloud):
     entry = MockConfigEntry(domain=DOMAIN, data=CREDENTIALS, options={"scan_interval": 60})
     entry.add_to_hass(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] is FlowResultType.MENU
-    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "polling"})
     options = {"scan_interval": 120}
     result = await hass.config_entries.options.async_configure(result["flow_id"], options)
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -115,7 +113,6 @@ async def test_options_reject_short_interval(hass: HomeAssistant, cloud):
     entry = MockConfigEntry(domain=DOMAIN, data=CREDENTIALS)
     entry.add_to_hass(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "polling"})
     with pytest.raises(vol.Invalid):
         await hass.config_entries.options.async_configure(result["flow_id"], {"scan_interval": 9})
     assert not entry.options
