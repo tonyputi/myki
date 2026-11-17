@@ -1,0 +1,19 @@
+name: Dependabot Branch Updates
+
+on:
+  push:
+    branches: ['**']
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-branches:
+    uses: tonyputi/.github/.github/workflows/update-dependabot-branches.yml@4741d4d1ebfa3a3ed7bcad052462ee1558bd8055
+    with:
+      github_app_id: ${{ vars.GH_APP_ID }}
+    secrets:
+      github_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
