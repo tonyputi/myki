@@ -243,6 +243,8 @@ The integration identifies known models from the device firmware. Diagnostics co
 
 Dependabot monitors GitHub Actions and the pip test requirements. Home Assistant manifest requirements and the separate Ruff pin in CI are not covered by the pip entry. After PR CI succeeds, Dependabot updates can enable native squash auto-merge. Human CODEOWNER review and the `hassfest`, `lint` and `tests` required checks remain mandatory. The repository-scoped GitHub App needs Contents and Pull requests write, `GH_APP_ID` and `GH_APP_PRIVATE_KEY`, and no ruleset bypass. See the [shared workflow prerequisites](https://github.com/tonyputi/.github#dependabot-auto-merge).
 
+The branch-update workflow keeps already opted-in Dependabot PRs current when `main` advances, with recovery every six hours and manual dispatch. It calls the shared implementation at a reviewed commit and uses the same repository-scoped App token, which also needs Checks and Commit statuses **read**. It never approves or directly merges PRs and does not check out PR code. Conflicts and failed checks are reported rather than bypassed. Branch updates start fresh CI and can dismiss stale approvals; a new human approval may be needed. To disable branch updates, remove `.github/workflows/dependabot-branch-updates.yml` and cancel its runs.
+
 ## Trademark
 
 MyKi and the MyKi logo are trademarks of Allterco Consulting Ltd.
