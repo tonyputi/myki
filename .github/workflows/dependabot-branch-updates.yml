@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   update-branches:
-    uses: tonyputi/.github/.github/workflows/update-dependabot-branches.yml@4741d4d1ebfa3a3ed7bcad052462ee1558bd8055
+    uses: tonyputi/.github/.github/workflows/update-dependabot-branches.yml@a7aa478ba4fc6b682b8c09b77676cfc80ebb43cf
     with:
       github_app_id: ${{ vars.GH_APP_ID }}
     secrets:
