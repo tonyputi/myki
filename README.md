@@ -3,11 +3,28 @@
 <img src="docs/assets/myki-icon.png" width="96" align="right" alt="MyKi">
 
 [![CI](https://github.com/tonyputi/myki/actions/workflows/ci.yml/badge.svg)](https://github.com/tonyputi/myki/actions/workflows/ci.yml)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://www.hacs.xyz/docs/faq/custom_repositories/)
 
-Unofficial Home Assistant integration for **Allterco MyKi GPS trackers** (first supported device: **MyKi Spot**). It uses the same cloud API as the MyKi Spot app — no vendor app needed on any phone you don't want it on.
+MyKi is an unofficial Home Assistant integration for **MyKi Spot** GPS trackers. It uses the vendor's cloud service to expose the last reported location, battery and online status in Home Assistant. You can use the tracker for presence-based automations, such as adjusting the heating when someone is home.
 
-> ⚠️ Unofficial, not affiliated with Allterco. Your credentials are stored in Home Assistant (Settings → Device & Services) exactly like any other cloud integration.
+**Requirements:** MyKi Spot, a MyKi Spot account and **Home Assistant 2026.11.0 or newer**. Other MyKi models are not supported. This is a custom integration, not part of Home Assistant Core or the default HACS catalog.
+
+## Installation
+
+**HACS (recommended):** In HACS, open **⋮ → Custom repositories**, add `https://github.com/tonyputi/myki` as an **Integration**, install **MyKi**, and restart Home Assistant.
+
+**Manual:** Open the [latest stable release](https://github.com/tonyputi/myki/releases/latest), download the `myki.zip` asset (not GitHub's source archive), and extract its contents into `config/custom_components/myki/`. Restart Home Assistant.
+
+After restarting, go to **Settings → Devices & services → Add integration**, search for **MyKi**, and enter your MyKi Spot account email and password. Home Assistant stores these credentials for the integration. Use **Configure** on the integration card for tracker settings or polling options.
+
+## Before you rely on it
+
+- The integration polls the MyKi cloud. Position and presence can lag behind the device. This is not a real-time tracking or safety notification system.
+- A missing or invalid position is not evidence that a tracker left a zone. In automations, handle `unknown` and `unavailable` explicitly.
+
+## Attach a tracker to a person
+
+Go to **Settings → People**, select a person, and add their MyKi tracker (for example, `device_tracker.example_tracker`). Home Assistant combines multiple tracking sources using its [Person presence rules](https://www.home-assistant.io/integrations/person/); it does not always select the most recent report.
 
 ## What you get
 
@@ -53,7 +70,9 @@ data:
 
 ## Configure a tracker
 
-Use **Settings → Devices & services → MyKi → Configure → Tracker settings**. Choose the tracker once, then a section:
+Use **Settings → Devices & services → MyKi → Configure → Tracker settings**. To adjust the time between updates instead, choose **Integration polling** (default 60 seconds, minimum 10 seconds).
+
+In **Tracker settings**, choose the tracker once, then a section:
 
 - **Contacts:** three SOS and seven app-visible whitelist slots; choose one slot to edit or clear.
 - **Audio and status light:** ring mode, ringtone, ring/call volume and default/disabled status LED.
@@ -157,22 +176,6 @@ Factory reset and account-device deletion remain app-only: potential configurati
 
 The app's Zone in, Zone out, Low battery and SOS pressed switches control the Android phone's notification registration. They are not shared tracker switches: HA does not read/change that phone registration, extract FCM tokens or impersonate the phone. HA can independently automate from computed zone changes, battery/online sensors and polled vendor events; this is not equivalent to real-time vendor push. No vendor event-name strings are assumed from translated on-screen messages.
 
-### One final acceptance check
-
-After human merge, normal release/HACS installation and an approved HA Core restart, perform one controlled validation session instead of testing between feature PRs:
-
-1. Read-only app/HA comparison on both trackers: contacts, both zones, modes, battery saving, audio/LED and schedules.
-2. Separately authorize each reversible write on one tracker, record the original value, confirm HA→app and app→HA behavior, verify unrelated settings and restore it. Avoid simultaneous edits from HA/app.
-3. Check zone/ring-mode precedence and restoration, tracker timezone/DST/overnight schedules, weekday ordering and actual alarm/LED behavior. Cloud storage alone is not hardware proof.
-4. Contact writes, calls/SOS, sounds, flashlight, mode changes and power actions need explicit scope before execution. Power-off/restart recovery must be arranged first. Factory reset and deletion are excluded.
-5. Record results against the existing work items, and close only the acceptance criteria actually verified. Other backends, extra zones, Core submission, publication and sponsorship are separate future work, not blockers for this Spot batch.
-
-Private screenshots, account details, phone numbers and real locations must not be published in issues, tests or documentation. The new zone/schedule state attributes are visible to HA users and may be stored by Recorder; apply the same privacy/access controls as tracker locations and contacts.
-
-## Attach a tracker to a person
-
-The trackers work with HA people: **Settings → People → *your kid* → add the MyKi tracker**, next to the tablet's tracker. Home Assistant combines the sources using its [Person presence rules](https://www.home-assistant.io/integrations/person/); it does not always select the most recent report.
-
 ## Automation ideas
 
 Event entities poll the vendor history and do not replay existing alarms when the integration loads. After history rotation, only events with numeric timestamps strictly newer than the last seen event are emitted; tied or unrecognized timestamps may be skipped. This is not a guaranteed or real-time safety notification system.
@@ -200,25 +203,13 @@ actions:
 
 More in [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
-## Installation
-
-Requires **Home Assistant 2026.11.0 or newer**. Earlier releases are not supported.
-
-**HACS:** HACS → ⋮ Custom repositories → `https://github.com/tonyputi/myki` (category *Integration*), install **MyKi**, restart.
-
-**Manual:** download `myki.zip` from the GitHub release, extract its contents into `config/custom_components/myki/`, and restart. The source archive does not contain the release-versioned manifest.
-
-Then enter the email and password of your MyKi Spot account.
-
-Configure on the integration card opens **Tracker settings** (the shared cloud editors described above) or **Integration polling** (seconds between updates, default 60, minimum 10; the vendor app polls every 10 s).
-
 ## How it works
 
 Reverse-engineered REST API of the MyKi Spot cloud (`spot.myki.pet`, HTTP Basic auth). The integration polls `GET /api/watch/app-data` per tracker: position, battery, steps, online state and the safe zones configured in the app. Full capability map: [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
 ## Development
 
-Tests target Home Assistant 2026.11.0 on Python 3.14.2 or newer in the 3.14 series. Use [uv](https://docs.astral.sh/uv/) and an environment outside the checkout:
+Run tests with Python 3.14.2 or newer in the 3.14 series. Use [uv](https://docs.astral.sh/uv/) and an environment outside the checkout:
 
 ```bash
 uv venv --python 3.14 /tmp/myki-tests
@@ -227,7 +218,9 @@ uv pip install -r requirements_test.txt
 pytest && ruff check .
 ```
 
-The official `pytest-homeassistant==2026.11.0` package pins the tested HA version. CI uses the same requirements; no compatibility code for older HA versions is maintained. CI also runs the official hassfest validator. These checks validate this custom integration, not acceptance into Home Assistant Core. Vendor event timestamp semantics, exact live-tracking duration and full hardware behavior still require live verification; no tracker commands are sent by the tests.
+The Home Assistant test version is pinned in [requirements_test.txt](requirements_test.txt). CI installs the same requirements for its test job and also runs hassfest. The minimum supported Home Assistant version is declared in [hacs.json](hacs.json).
+
+CI does not verify hardware behavior or acceptance into Home Assistant Core. Vendor event timestamp semantics, exact live-tracking duration and full hardware behavior still require live verification; no tracker commands are sent by the tests. See the maintainer [hardware acceptance checklist](docs/HARDWARE_ACCEPTANCE.md).
 
 ## Supported devices
 
@@ -247,7 +240,7 @@ The branch-update workflow keeps already opted-in Dependabot PRs current when `m
 
 ## Trademark
 
-MyKi and the MyKi logo are trademarks of Allterco Consulting Ltd.
+This unofficial integration is not affiliated with Allterco. MyKi and the MyKi logo are trademarks of Allterco Consulting Ltd.
 The icon used in this README is the official MyKi asset from mykifamily.com.
 
 ## License
